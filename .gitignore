@@ -46,7 +46,8 @@ go.work.sum
 .pub-cache/
 .flutter-plugins
 .flutter-plugins-dependencies
-.flutter-plugins-dependencies
+.metadata
+generated_plugin_registrant.*
 **/ios/Flutter/.last_build_id
 
 # Keep pubspec.lock for apps — do NOT ignore it
@@ -108,6 +109,17 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+########################
+# Solidity / Foundry / Forge
+########################
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/.foundry/
+contracts/lib/
+forge-cache/
+*.gas
 
 ########################
 # Python
