@@ -165,11 +165,10 @@ contract DAOManager is AccessControl, ReentrancyGuard, IDAOManager {
                 (address, uint256, address)
             );
             if (token != address(0) && amount > 0 && recipient != address(0)) {
-                // Withdraw from vault to DAOManager (vault transfers tokens to msg.sender)
                 ITokenVault(tokenVault).withdraw(token, amount);
-                // Forward tokens to the intended recipient
                 bool ok = IERC20(token).transfer(recipient, amount);
                 require(ok, "TRANSFER_FAILED");
+                emit TreasuryWithdrawn(p.daoId, recipient, token, amount);
             }
         }
     }

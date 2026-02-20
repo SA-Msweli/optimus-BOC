@@ -18,7 +18,8 @@ contract LoanManager is AccessControl, ReentrancyGuard, ILoanManager {
         uint256 startTime;
         uint256 endTime;
         uint256 amountPaid;
-        uint8 status; // 0 pending, 1 approved, 2 repaid, 3 defaulted
+        /// @notice status: 0 = pending, 1 = approved, 2 = repaid, 3 = defaulted
+        uint8 status;
     }
 
     uint256 private _nextLoanId = 1;
@@ -125,7 +126,7 @@ contract LoanManager is AccessControl, ReentrancyGuard, ILoanManager {
             require(sent, "REFUND_FAILED");
         }
 
-        if (l.amountPaid >= totalOwed) l.status = 2; // mark repaid
+        if (l.amountPaid >= totalOwed) l.status = 2;
     }
 
     /// @inheritdoc ILoanManager
