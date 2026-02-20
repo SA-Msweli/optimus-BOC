@@ -149,7 +149,7 @@ ehthumbs.db
 *.jks
 *.keystore
 key.properties
-.env*
+.env
 
 ########################
 # Misc / logs / editor backups
