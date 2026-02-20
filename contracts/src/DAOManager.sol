@@ -7,8 +7,6 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IDAOManager} from "./interfaces/IDAOManager.sol";
 import {ITokenVault} from "./interfaces/ITokenVault.sol";
 
-/// @title DAOManager
-/// @notice Full DAO manager: governance, membership, BNPL policy, and treasury via TokenVault.
 contract DAOManager is AccessControl, ReentrancyGuard, IDAOManager {
     bytes32 public constant DAO_ADMIN_ROLE = keccak256("DAO_ADMIN_ROLE");
     bytes32 public constant TREASURY_FUNDER_ROLE =
@@ -61,7 +59,6 @@ contract DAOManager is AccessControl, ReentrancyGuard, IDAOManager {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Set the TokenVault address for treasury management.
     function setTokenVault(
         address _tokenVault
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {

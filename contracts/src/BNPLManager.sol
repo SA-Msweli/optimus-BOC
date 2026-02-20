@@ -6,8 +6,6 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 import {IBNPLManager} from "./interfaces/IBNPLManager.sol";
 import {IDAOManager} from "./interfaces/IDAOManager.sol";
 
-/// @title BNPLManager
-/// @notice Full BNPL manager: validates DAO policy, computes installments, accepts payments, auto‑activates on first payment and applies late fees.
 contract BNPLManager is AccessControl, ReentrancyGuard, IBNPLManager {
     bytes32 public constant BNPL_ADMIN_ROLE = keccak256("BNPL_ADMIN_ROLE");
 
@@ -37,7 +35,6 @@ contract BNPLManager is AccessControl, ReentrancyGuard, IBNPLManager {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Set the DAOManager address used for BNPL policy lookups.
     function setDaoManager(
         address _daoManager
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {

@@ -6,8 +6,6 @@ import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessContr
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-/// @title TokenVault
-/// @notice Multi‑asset vault with ERC‑20 safe transfers, access control, and reentrancy protection.
 contract TokenVault is AccessControl, ReentrancyGuard, ITokenVault {
     bytes32 public constant VAULT_MANAGER_ROLE =
         keccak256("VAULT_MANAGER_ROLE");
@@ -18,7 +16,6 @@ contract TokenVault is AccessControl, ReentrancyGuard, ITokenVault {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Deposit increases the vault accounting balance for `token`.
     function deposit(address token, uint256 amount) external override {
         require(amount > 0, "ZERO_AMOUNT");
         bool ok = IERC20(token).transferFrom(msg.sender, address(this), amount);
@@ -27,7 +24,6 @@ contract TokenVault is AccessControl, ReentrancyGuard, ITokenVault {
         emit Deposit(msg.sender, token, amount, _balances[token]);
     }
 
-    /// @notice Withdraw reduces the vault accounting balance for `token`.
     function withdraw(
         address token,
         uint256 amount
@@ -44,7 +40,6 @@ contract TokenVault is AccessControl, ReentrancyGuard, ITokenVault {
         emit Withdrawal(msg.sender, token, amount, _balances[token]);
     }
 
-    /// @notice Returns the stored balance (accounting) for `token`.
     function getBalance(
         address token
     ) external view override returns (uint256) {

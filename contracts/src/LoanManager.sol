@@ -5,8 +5,6 @@ import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessContr
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import {ILoanManager} from "./interfaces/ILoanManager.sol";
 
-/// @title LoanManager
-/// @notice Full loan manager with lifecycle events required by CRE mappings, reentrancy-protected payments.
 contract LoanManager is AccessControl, ReentrancyGuard, ILoanManager {
     bytes32 public constant LOAN_ADMIN_ROLE = keccak256("LOAN_ADMIN_ROLE");
 
