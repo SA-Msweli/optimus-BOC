@@ -179,6 +179,12 @@ contract BNPLManager is AccessControl, ReentrancyGuard, IBNPLManager {
         uint256 installment = a.installmentAmounts[installmentNumber];
         uint256 fee = (installment * a.lateFeeBps) / 10000;
         a.totalAmount += fee;
+
+        // Credit DAO treasury accounting so fees are recorded on-chain.
+        if (daoManager != address(0) && fee > 0) {
+            IDAOManager(daoManager).creditTreasury(a.daoId, fee);
+        }
+
         emit BNPLLateFeeApplied(
             arrangementId,
             installmentNumber,
@@ -195,6 +201,32 @@ contract BNPLManager is AccessControl, ReentrancyGuard, IBNPLManager {
     ) external {
         Arrangement storage a = _arrangements[arrangementId];
         require(a.id != 0, "ARR_NOT_FOUND");
+
+        // Verify DAO policy allows rescheduling
+        require(daoManager != address(0), "DAO_MANAGER_NOT_SET");
+        (
+            ,
+            uint256 allowedIntervalMinDays,
+            uint256 allowedIntervalMaxDays,
+            ,
+            ,
+            bool rescheduleAllowed,
+
+        ) = IDAOManager(daoManager).getBnplTerms(a.daoId);
+        require(rescheduleAllowed, "RESCHEDULE_NOT_ALLOWED");
+
+        // Only payer or admin may reschedule
+        require(
+            msg.sender == a.payer || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "UNAUTHORIZED"
+        );
+
+        require(
+            newIntervalSeconds >= allowedIntervalMinDays * 1 days &&
+                newIntervalSeconds <= allowedIntervalMaxDays * 1 days,
+            "INTERVAL_OUT_OF_BOUNDS"
+        );
+
         bytes32 oldHash = keccak256(
             abi.encode(a.startTimestamp, a.intervalSeconds)
         );

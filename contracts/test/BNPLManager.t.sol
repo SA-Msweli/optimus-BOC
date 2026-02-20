@@ -16,6 +16,8 @@ contract BNPLManagerTest is Test {
         daoId = dao.createDAO(address(this), 1, 7);
         dao.setBnplTerms(daoId, 3, 1, 90, 500, 5, true, 0);
         bnpl.setDaoManager(address(dao));
+        // Allow BNPLManager to credit DAO treasury when late fees are applied
+        dao.grantRole(dao.TREASURY_FUNDER_ROLE(), address(bnpl));
     }
 
     receive() external payable {}
@@ -179,11 +181,16 @@ contract BNPLManagerTest is Test {
         (, , , , uint256 before, , uint256[] memory inst, , , , ) = bnpl
             .getArrangement(id);
 
+        uint256 treasuryBefore = dao.getTreasuryBalance(daoId);
         uint256 expectedFee = (inst[0] * 500) / 10000;
+
         bnpl.applyLateFee(id, 0);
 
         (, , , , uint256 after_total, , , , , , ) = bnpl.getArrangement(id);
+        uint256 treasuryAfter = dao.getTreasuryBalance(daoId);
+
         assertEq(after_total, before + expectedFee);
+        assertEq(treasuryAfter, treasuryBefore + expectedFee);
     }
 
     function testReschedule() public {
@@ -204,6 +211,39 @@ contract BNPLManagerTest is Test {
 
         assertEq(start, newStart);
         assertEq(interval, newInterval);
+    }
+
+    function testReschedule_NotAllowedReverts() public {
+        uint256 newDaoId = dao.createDAO(address(this), 2, 7);
+        dao.setBnplTerms(newDaoId, 3, 1, 90, 500, 5, false, 0);
+        bnpl.setDaoManager(address(dao));
+
+        uint256 id = bnpl.createBNPL(
+            newDaoId,
+            address(0x99),
+            1000,
+            block.timestamp,
+            30 days,
+            ""
+        );
+
+        vm.expectRevert("RESCHEDULE_NOT_ALLOWED");
+        bnpl.reschedule(id, block.timestamp + 1 days, 31 days);
+    }
+
+    function testReschedule_UnauthorizedReverts() public {
+        uint256 id = bnpl.createBNPL(
+            daoId,
+            address(0x99),
+            1000,
+            block.timestamp,
+            30 days,
+            ""
+        );
+
+        vm.prank(address(0x5));
+        vm.expectRevert("UNAUTHORIZED");
+        bnpl.reschedule(id, block.timestamp + 1 days, 31 days);
     }
 
     function testMakePayment_InvalidInstallment() public {

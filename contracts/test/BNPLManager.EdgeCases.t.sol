@@ -18,6 +18,8 @@ contract BNPLManagerEdgeCasesTest is Test {
         daoId = dao.createDAO(address(this), 1, 7);
         dao.setBnplTerms(daoId, 3, 1, 90, 500, 5, true, 0);
         bnpl.setDaoManager(address(dao));
+        // allow BNPLManager to credit treasury when applying late fees in tests
+        dao.grantRole(dao.TREASURY_FUNDER_ROLE(), address(bnpl));
     }
 
     receive() external payable {}

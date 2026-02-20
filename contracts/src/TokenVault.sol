@@ -9,6 +9,8 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 /// @title TokenVault
 /// @notice Multi‑asset vault with ERC‑20 safe transfers, access control, and reentrancy protection.
 contract TokenVault is AccessControl, ReentrancyGuard, ITokenVault {
+    bytes32 public constant VAULT_MANAGER_ROLE =
+        keccak256("VAULT_MANAGER_ROLE");
     mapping(address => uint256) private _balances;
 
     /// @dev Grant DEFAULT_ADMIN_ROLE to deployer.
@@ -29,7 +31,12 @@ contract TokenVault is AccessControl, ReentrancyGuard, ITokenVault {
     function withdraw(
         address token,
         uint256 amount
-    ) external override onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+    ) external override nonReentrant {
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
+                hasRole(VAULT_MANAGER_ROLE, msg.sender),
+            "NOT_AUTHORIZED"
+        );
         require(_balances[token] >= amount, "INSUFFICIENT_BALANCE");
         _balances[token] -= amount;
         bool ok = IERC20(token).transfer(msg.sender, amount);

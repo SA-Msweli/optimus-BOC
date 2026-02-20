@@ -100,4 +100,18 @@ interface IDAOManager {
         bool rescheduleAllowed,
         uint256 minDownPaymentBps
     ) external;
+
+    /* Treasury helpers */
+    event TreasuryDeposited(
+        uint256 indexed daoId,
+        address indexed by,
+        uint256 amount,
+        uint256 newBalance
+    );
+
+    /// @notice Credit DAO treasury accounting (used for late fees, repayments, etc.)
+    function creditTreasury(uint256 daoId, uint256 amount) external;
+
+    /// @notice Returns the DAO's accounting treasury balance
+    function getTreasuryBalance(uint256 daoId) external view returns (uint256);
 }

@@ -3,6 +3,14 @@ pragma solidity ^0.8.19;
 
 import {Test} from "forge-std/Test.sol";
 import {DAOManager} from "../src/DAOManager.sol";
+import {TokenVault} from "../src/TokenVault.sol";
+import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+
+contract ERC20Mock is ERC20 {
+    constructor(uint256 initial) ERC20("Mock", "MCK") {
+        _mint(msg.sender, initial);
+    }
+}
 
 event DaoCreated(uint256 indexed daoId, address indexed creator, uint8 goal, uint256 createdAt);
 event MemberJoined(uint256 indexed daoId, address indexed member, uint256 investment, uint256 joinedAt);
@@ -145,6 +153,35 @@ contract DAOManagerTest is Test {
         
         vm.expectRevert("NOT_APPROVED");
         dao.executeProposal(proposalId);
+    }
+
+    function testExecuteProposal_WithdrawsFromVaultToRecipient() public {
+        TokenVault vault = new TokenVault();
+        ERC20Mock token = new ERC20Mock(10000);
+
+        // deposit 1000 tokens into vault
+        token.approve(address(vault), 1000);
+        vault.deposit(address(token), 1000);
+
+        // allow DAOManager to call vault withdraw
+        vault.grantRole(vault.VAULT_MANAGER_ROLE(), address(dao));
+        dao.setTokenVault(address(vault));
+
+        uint256 daoId = dao.createDAO(alice, 1, 1);
+        dao.joinDAO(daoId, alice, 1000);
+
+        bytes memory data = abi.encode(address(token), uint256(500), bob);
+        uint256 proposalId = dao.propose(daoId, data);
+
+        vm.prank(alice);
+        dao.vote(proposalId, true);
+
+        vm.warp(block.timestamp + 2 days);
+        dao.finalizeProposal(proposalId);
+
+        // execute should withdraw from vault and forward to recipient (bob)
+        dao.executeProposal(proposalId);
+        assertEq(token.balanceOf(bob), 500);
     }
 
     function testProposal_FullLifecycle() public {

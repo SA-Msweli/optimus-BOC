@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {IDAOManager} from "./interfaces/IDAOManager.sol";
 import {ITokenVault} from "./interfaces/ITokenVault.sol";
 
@@ -10,6 +11,8 @@ import {ITokenVault} from "./interfaces/ITokenVault.sol";
 /// @notice Full DAO manager: governance, membership, BNPL policy, and treasury via TokenVault.
 contract DAOManager is AccessControl, ReentrancyGuard, IDAOManager {
     bytes32 public constant DAO_ADMIN_ROLE = keccak256("DAO_ADMIN_ROLE");
+    bytes32 public constant TREASURY_FUNDER_ROLE =
+        keccak256("TREASURY_FUNDER_ROLE");
 
     struct BnplTerms {
         uint256 numInstallments;
@@ -162,7 +165,11 @@ contract DAOManager is AccessControl, ReentrancyGuard, IDAOManager {
                 (address, uint256, address)
             );
             if (token != address(0) && amount > 0 && recipient != address(0)) {
+                // Withdraw from vault to DAOManager (vault transfers tokens to msg.sender)
                 ITokenVault(tokenVault).withdraw(token, amount);
+                // Forward tokens to the intended recipient
+                bool ok = IERC20(token).transfer(recipient, amount);
+                require(ok, "TRANSFER_FAILED");
             }
         }
     }
@@ -225,5 +232,27 @@ contract DAOManager is AccessControl, ReentrancyGuard, IDAOManager {
             gracePeriodDays,
             rescheduleAllowed
         );
+    }
+
+    /// @notice Credit DAO treasury accounting. Callable by privileged funders (BNPLManager, CRE, admin).
+    function creditTreasury(uint256 daoId, uint256 amount) external {
+        require(_daos[daoId].createdAt != 0, "DAO_NOT_FOUND");
+        require(
+            hasRole(TREASURY_FUNDER_ROLE, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            "NOT_AUTHORIZED"
+        );
+        _daos[daoId].treasuryBalance += amount;
+        emit TreasuryDeposited(
+            daoId,
+            msg.sender,
+            amount,
+            _daos[daoId].treasuryBalance
+        );
+    }
+
+    /// @notice Returns the DAO's accounting treasury balance.
+    function getTreasuryBalance(uint256 daoId) external view returns (uint256) {
+        return _daos[daoId].treasuryBalance;
     }
 }
