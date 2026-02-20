@@ -16,7 +16,6 @@ contract BNPLManagerTest is Test {
         daoId = dao.createDAO(address(this), 1, 7);
         dao.setBnplTerms(daoId, 3, 1, 90, 500, 5, true, 0);
         bnpl.setDaoManager(address(dao));
-        // Allow BNPLManager to credit DAO treasury when late fees are applied
         dao.grantRole(dao.TREASURY_FUNDER_ROLE(), address(bnpl));
     }
 

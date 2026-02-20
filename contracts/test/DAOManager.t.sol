@@ -14,6 +14,7 @@ contract ERC20Mock is ERC20 {
 
 event DaoCreated(uint256 indexed daoId, address indexed creator, uint8 goal, uint256 createdAt);
 event MemberJoined(uint256 indexed daoId, address indexed member, uint256 investment, uint256 joinedAt);
+event TreasuryWithdrawn(uint256 indexed daoId, address to, address token, uint256 amount);
 
 contract DAOManagerTest is Test {
     DAOManager dao;
@@ -159,11 +160,9 @@ contract DAOManagerTest is Test {
         TokenVault vault = new TokenVault();
         ERC20Mock token = new ERC20Mock(10000);
 
-        // deposit 1000 tokens into vault
         token.approve(address(vault), 1000);
         vault.deposit(address(token), 1000);
 
-        // allow DAOManager to call vault withdraw
         vault.grantRole(vault.VAULT_MANAGER_ROLE(), address(dao));
         dao.setTokenVault(address(vault));
 
@@ -179,7 +178,9 @@ contract DAOManagerTest is Test {
         vm.warp(block.timestamp + 2 days);
         dao.finalizeProposal(proposalId);
 
-        // execute should withdraw from vault and forward to recipient (bob)
+        vm.expectEmit(true, false, false, true);
+        emit TreasuryWithdrawn(daoId, bob, address(token), 500);
+
         dao.executeProposal(proposalId);
         assertEq(token.balanceOf(bob), 500);
     }

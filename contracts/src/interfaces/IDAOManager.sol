@@ -109,6 +109,14 @@ interface IDAOManager {
         uint256 newBalance
     );
 
+    /// @notice Emitted when DAO treasury funds are withdrawn (e.g. proposal execution).
+    event TreasuryWithdrawn(
+        uint256 indexed daoId,
+        address to,
+        address token,
+        uint256 amount
+    );
+
     /// @notice Credit DAO treasury accounting (used for late fees, repayments, etc.)
     function creditTreasury(uint256 daoId, uint256 amount) external;
 

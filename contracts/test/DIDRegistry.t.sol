@@ -8,9 +8,6 @@ event DIDCreated(address indexed owner, uint256 createdAt);
 event PrivyCredentialLinked(address indexed owner, bytes32 indexed credentialHash, uint256 linkedAt);
 event RiskProfileUpdated(address indexed owner, uint256 newScore, bytes32 indexed profileHash);
 
-/// @title DIDRegistryTest
-/// @notice Unit tests for DIDRegistry covering lifecycle, Privy linkage and risk scoring.
-/// @dev Mirrors AccessControl-style tests: role grants, permission checks and expected reverts.
 contract DIDRegistryTest is Test {
     DIDRegistry internal registry;
     address internal admin = address(this);
@@ -19,12 +16,10 @@ contract DIDRegistryTest is Test {
     address internal updater = address(0x3);
     address internal privyLinker = address(0x4);
 
-    /// @dev Deploy DIDRegistry with deployer as DEFAULT_ADMIN_ROLE.
     function setUp() public {
         registry = new DIDRegistry();
     }
 
-    /// @notice Owner can create their DID; existence is stored.
     function testCreateDID_byOwner() public {
         vm.prank(owner);
         vm.expectEmit(true, false, false, false);
@@ -33,7 +28,6 @@ contract DIDRegistryTest is Test {
         assertTrue(registry.exists(owner));
     }
 
-    /// @notice Admin may create a DID for another account.
     function testCreateDID_byAdmin() public {
         vm.expectEmit(true, false, false, false);
         emit DIDCreated(owner, 0);
@@ -41,14 +35,12 @@ contract DIDRegistryTest is Test {
         assertTrue(registry.exists(owner));
     }
 
-    /// @notice Duplicate creation reverts with DIDAlreadyExists.
     function testCreateDID_duplicateReverts() public {
         registry.createDID(owner);
         vm.expectRevert(abi.encodeWithSelector(DIDAlreadyExists.selector, owner));
         registry.createDID(owner);
     }
 
-    /// @notice Owner can link a Privy credential; event emitted.
     function testLinkPrivyCredential_byOwner() public {
         registry.createDID(owner);
         bytes32 h = keccak256(abi.encodePacked("cred-1"));
@@ -59,7 +51,6 @@ contract DIDRegistryTest is Test {
         assertEq(registry.getPrivyCredentialHash(owner), h);
     }
 
-    /// @notice Account with PRIVY_LINKER_ROLE may link credentials for others.
     function testLinkPrivyCredential_byRole() public {
         registry.createDID(owner);
         registry.grantRole(registry.PRIVY_LINKER_ROLE(), privyLinker);
@@ -71,7 +62,6 @@ contract DIDRegistryTest is Test {
         assertEq(registry.getPrivyCredentialHash(owner), h);
     }
 
-    /// @notice Unauthorized callers cannot link credentials.
     function testLinkPrivyCredential_unauthorizedReverts() public {
         registry.createDID(owner);
         bytes32 h = keccak256(abi.encodePacked("cred-3"));
@@ -80,7 +70,6 @@ contract DIDRegistryTest is Test {
         registry.linkPrivyCredential(owner, h);
     }
 
-    /// @notice RISK_UPDATER_ROLE may update risk scores and emit the event.
     function testUpdateRiskProfile_byRole() public {
         registry.createDID(owner);
         registry.grantRole(registry.RISK_UPDATER_ROLE(), updater);
@@ -91,7 +80,6 @@ contract DIDRegistryTest is Test {
         assertEq(registry.getRiskProfileScore(owner), 420);
     }
 
-    /// @notice Scores outside allowed bounds revert with InvalidScore.
     function testUpdateRiskProfile_boundsRevert() public {
         registry.createDID(owner);
         registry.grantRole(registry.RISK_UPDATER_ROLE(), updater);
@@ -100,7 +88,6 @@ contract DIDRegistryTest is Test {
         registry.updateRiskProfile(owner, 10001, bytes32(0));
     }
 
-    /// @notice Querying a non-existent DID reverts with DIDNotFound.
     function testGetters_nonexistentRevert() public {
         vm.expectRevert(abi.encodeWithSelector(DIDNotFound.selector, owner));
         registry.getPrivyCredentialHash(owner);

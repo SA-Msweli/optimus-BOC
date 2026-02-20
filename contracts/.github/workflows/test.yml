@@ -28,6 +28,9 @@ jobs:
       - name: Show Forge version
         run: forge --version
 
+      - name: Enforce comment policy
+        run: bash contracts/scripts/check-comments.sh
+
       - name: Run Forge fmt
         run: forge fmt --check
 
@@ -36,3 +39,78 @@ jobs:
 
       - name: Run Forge tests
         run: forge test -vvv
+
+  integration:
+    name: Anvil integration (deploy + verify)
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Start Anvil (background)
+        run: |
+          nohup anvil --block-time 1 > anvil.log 2>&1 &
+          # wait for anvil to boot and display keys
+          sleep 1
+          grep -q "Available Accounts" anvil.log
+
+      - name: Extract Anvil private key and RPC URL
+        id: anvil
+        run: |
+          PK=$(grep -A 1 "Private Keys" anvil.log | tail -n1 | tr -d '\r' | awk '{print $1}')
+          echo "ANVIL_PRIVATE_KEY=$PK" >> $GITHUB_ENV
+          echo "ANVIL_RPC_URL=http://127.0.0.1:8545" >> $GITHUB_ENV
+          echo "Found anvil private key for deployment: ${PK}"
+
+      - name: Deploy contracts to Anvil
+        run: |
+          set -o pipefail
+          forge script script/Deploy.s.sol:Deploy \
+            --rpc-url $ANVIL_RPC_URL \
+            --private-key $ANVIL_PRIVATE_KEY \
+            --broadcast | tee /tmp/deploy.log
+
+      - name: Verify post-deploy invariants (Anvil)
+        run: |
+          RPC=$ANVIL_RPC_URL
+          DAO_ADDR=$(grep "DAOManager:" /tmp/deploy.log | awk '{print $2}')
+          BNPL_ADDR=$(grep "BNPLManager:" /tmp/deploy.log | awk '{print $2}')
+          VAULT_ADDR=$(grep "TokenVault:" /tmp/deploy.log | awk '{print $2}')
+
+          echo "DAO=$DAO_ADDR BNPL=$BNPL_ADDR VAULT=$VAULT_ADDR"
+
+          # dao.tokenVault() == TokenVault address
+          tv=$(cast call $DAO_ADDR "tokenVault()(address)" --rpc-url $RPC)
+          if [ "$tv" != "$VAULT_ADDR" ]; then
+            echo "tokenVault mismatch: got=$tv expected=$VAULT_ADDR"
+            exit 1
+          fi
+
+          # bnpl.daoManager() == DAO address
+          dm=$(cast call $BNPL_ADDR "daoManager()(address)" --rpc-url $RPC)
+          if [ "$dm" != "$DAO_ADDR" ]; then
+            echo "bnpl.daoManager mismatch: got=$dm expected=$DAO_ADDR"
+            exit 1
+          fi
+
+          # DAOManager has TREASURY_FUNDER_ROLE granted to BNPLManager
+          TREASURY_HASH=$(cast keccak "TREASURY_FUNDER_ROLE")
+          has=$(cast call $DAO_ADDR "hasRole(bytes32,address)(bool)" $TREASURY_HASH $BNPL_ADDR --rpc-url $RPC)
+          echo "DAO has TREASURY_FUNDER_ROLE for BNPL: $has"
+          if ! echo "$has" | grep -q "true"; then
+            exit 1
+          fi
+
+          # TokenVault has VAULT_MANAGER_ROLE granted to DAOManager
+          VAULT_HASH=$(cast keccak "VAULT_MANAGER_ROLE")
+          has2=$(cast call $VAULT_ADDR "hasRole(bytes32,address)(bool)" $VAULT_HASH $DAO_ADDR --rpc-url $RPC)
+          echo "Vault has VAULT_MANAGER_ROLE for DAO: $has2"
+          if ! echo "$has2" | grep -q "true"; then
+            exit 1
+          fi

@@ -4,8 +4,6 @@ pragma solidity ^0.8.19;
 import {Test} from "forge-std/Test.sol";
 import {LoanManager} from "../src/LoanManager.sol";
 
-/// @title LoanManager Edge Case Tests
-/// @notice Comprehensive edge case testing for Loans: interest accrual, refunds, time progression.
 contract LoanManagerEdgeCasesTest is Test {
     LoanManager loans;
     address borrower = address(0x1);
@@ -16,7 +14,6 @@ contract LoanManagerEdgeCasesTest is Test {
 
     receive() external payable {}
 
-    /// @notice Test interest with zero interest rate (principal only)
     function testEdgeCase_ZeroInterestRate() public {
         uint256 lid = loans.createLoan(borrower, 0, 1 ether, 0, 365 days);
         loans.approveLoan(lid);
@@ -28,7 +25,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(owed, 1 ether);
     }
 
-    /// @notice Test with maximum interest rate (10000 bps = 100%)
     function testEdgeCase_MaximumInterestRate() public {
         uint256 principal = 10000;
         uint256 lid = loans.createLoan(borrower, 0, principal, 10000, 365 days);
@@ -41,7 +37,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(accrued, expectedInterest);
     }
 
-    /// @notice Test interest accrual at very short time intervals
     function testEdgeCase_InterestAtOneHour() public {
         uint256 principal = 525600;
         uint256 lid = loans.createLoan(borrower, 0, principal, 100, 365 days);
@@ -54,7 +49,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertTrue(accrued <= expectedMax);
     }
 
-    /// @notice Test multiple partial payments with growing interest
     function testEdgeCase_MultiplePartialPaymentsWithInterest() public {
         uint256 principal = 10000;
         uint256 lid = loans.createLoan(borrower, 0, principal, 500, 365 days);
@@ -75,7 +69,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(status, 2);
     }
 
-    /// @notice Test refund with exact overpayment
     function testEdgeCase_RefundExactOverpayment() public {
         uint256 lid = loans.createLoan(borrower, 0, 1000, 0, 365 days);
         loans.approveLoan(lid);
@@ -89,7 +82,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(before - after_balance, 1000);
     }
 
-    /// @notice Test payment of exactly principal amount
     function testEdgeCase_PaymentExactPrincipal() public {
         uint256 principal = 5555;
         uint256 lid = loans.createLoan(borrower, 0, principal, 0, 365 days);
@@ -103,7 +95,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(status, 2);
     }
 
-    /// @notice Test default marking before repayment
     function testEdgeCase_DefaultBeforeAnyPayment() public {
         uint256 lid = loans.createLoan(borrower, 0, 1 ether, 500, 365 days);
         loans.approveLoan(lid);
@@ -115,7 +106,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(status, 3);
     }
 
-    /// @notice Test default marking after partial payment
     function testEdgeCase_DefaultAfterPartialPayment() public {
         uint256 lid = loans.createLoan(borrower, 0, 1 ether, 500, 365 days);
         loans.approveLoan(lid);
@@ -130,7 +120,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(status, 3);
     }
 
-    /// @notice Test interest accrual over multiple time slices
     function testEdgeCase_InterestAccrualTimeSlices() public {
         uint256 principal = 1000;
         uint256 lid = loans.createLoan(borrower, 0, principal, 1000, 365 days);
@@ -152,7 +141,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertGt(accrued273, accrued91);
     }
 
-    /// @notice Test amount owed transitions from principal to principal+interest
     function testEdgeCase_AmountOwedProgression() public {
         uint256 principal = 2000;
         uint256 lid = loans.createLoan(borrower, 0, principal, 1000, 365 days);
@@ -168,7 +156,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(owed365, principal + expectedInterest);
     }
 
-    /// @notice Test refund precision with small amounts
     function testEdgeCase_RefundSmallOverpayment() public {
         uint256 lid = loans.createLoan(borrower, 0, 100, 0, 365 days);
         loans.approveLoan(lid);
@@ -182,7 +169,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(before - after_balance, 100);
     }
 
-    /// @notice Test sequential partial repayments across long time periods
     function testEdgeCase_LongSequentialRepayments() public {
         uint256 principal = 30000;
         uint256 lid = loans.createLoan(
@@ -211,7 +197,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(status, 2);
     }
 
-    /// @notice Test amount owed after partial payment includes remaining interest
     function testEdgeCase_RemainingOwedAfterPartialPayment() public {
         uint256 principal = 10000;
         uint256 lid = loans.createLoan(borrower, 0, principal, 500, 365 days);
@@ -230,7 +215,6 @@ contract LoanManagerEdgeCasesTest is Test {
         assertEq(status, 2);
     }
 
-    /// @notice Test approval requires exact status 0 -> 1
     function testEdgeCase_CannotApproveApprovedLoan() public {
         uint256 lid = loans.createLoan(borrower, 0, 1 ether, 500, 365 days);
         loans.approveLoan(lid);

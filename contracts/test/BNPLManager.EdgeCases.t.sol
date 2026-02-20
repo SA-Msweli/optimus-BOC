@@ -5,8 +5,6 @@ import {Test} from "forge-std/Test.sol";
 import {BNPLManager} from "../src/BNPLManager.sol";
 import {DAOManager} from "../src/DAOManager.sol";
 
-/// @title BNPLManager Edge Case Tests
-/// @notice Comprehensive edge case testing for BNPL: extreme amounts, refund sequences, late fees, rescheduling.
 contract BNPLManagerEdgeCasesTest is Test {
     BNPLManager bnpl;
     DAOManager dao;
@@ -18,13 +16,11 @@ contract BNPLManagerEdgeCasesTest is Test {
         daoId = dao.createDAO(address(this), 1, 7);
         dao.setBnplTerms(daoId, 3, 1, 90, 500, 5, true, 0);
         bnpl.setDaoManager(address(dao));
-        // allow BNPLManager to credit treasury when applying late fees in tests
         dao.grantRole(dao.TREASURY_FUNDER_ROLE(), address(bnpl));
     }
 
     receive() external payable {}
 
-    /// @notice Test installment division with very small amounts
     function testEdgeCase_TinyInstallments() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -41,7 +37,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertTrue(inst[2] > 0);
     }
 
-    /// @notice Test with maximum policy interval (90 days)
     function testEdgeCase_MaxInterval() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -55,7 +50,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(interval, 90 days);
     }
 
-    /// @notice Test with minimum policy interval (1 day)
     function testEdgeCase_MinInterval() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -69,7 +63,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(interval, 1 days);
     }
 
-    /// @notice Test multiple refunds in sequence
     function testEdgeCase_MultipleRefundsSequential() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -99,7 +92,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(beforePayment3 - afterPayment3, inst[2]);
     }
 
-    /// @notice Test late fee application with maximum DAO value
     function testEdgeCase_LateFeeWithHighRate() public {
         uint256 newDaoId = dao.createDAO(address(this), 2, 7);
         dao.setBnplTerms(newDaoId, 3, 1, 90, 10000, 5, true, 0);
@@ -122,7 +114,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(newTotal, originalTotal + expectedMaxFee);
     }
 
-    /// @notice Test rescheduling to different intervals sequentially
     function testEdgeCase_RescheduleMultipleTimes() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -148,7 +139,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(interval2, 35 days);
     }
 
-    /// @notice Test payment completion edge case with non-uniform installments
     function testEdgeCase_NonUniformInstallmentCompletion() public {
         uint256 totalAmount = 1005;
         uint256 id = bnpl.createBNPL(
@@ -173,7 +163,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(finalStatus, 2);
     }
 
-    /// @notice Test payment with exactly one wei under requirement
     function testEdgeCase_PaymentOneWeiShort() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -190,7 +179,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         bnpl.makePayment{value: inst[0] - 1}(id, 0);
     }
 
-    /// @notice Test boundary: activate from pending without activation function
     function testEdgeCase_FirstPaymentAutoActivation() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -211,7 +199,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(statusAfter, 1);
     }
 
-    /// @notice Test late fee accumulation on multiple installments
     function testEdgeCase_MultipleLateFeesAccumulate() public {
         uint256 id = bnpl.createBNPL(
             daoId,
@@ -234,7 +221,6 @@ contract BNPLManagerEdgeCasesTest is Test {
         assertEq(newTotal, originalTotal + fee0 + fee1);
     }
 
-    /// @notice Test mixed payment and late fee scenarios
     function testEdgeCase_PaymentAfterLateFee() public {
         uint256 id = bnpl.createBNPL(
             daoId,
