@@ -4,92 +4,110 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
-	"math/big"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/optimus-boc-protocol/services"
+	// Service sub-packages (interface + implementation)
+	bnplsvc "github.com/optimus-boc-protocol/services/bnpl"
+	daosvc "github.com/optimus-boc-protocol/services/dao"
 	"github.com/optimus-boc-protocol/services/did"
-	ctl "github.com/optimus-boc-protocol/controllers/did"
+	loansvc "github.com/optimus-boc-protocol/services/loan"
+	tvsvc "github.com/optimus-boc-protocol/services/tokenvault"
+
+	// Controllers
+	bnplctl "github.com/optimus-boc-protocol/controllers/bnpl"
+	daoctl "github.com/optimus-boc-protocol/controllers/dao"
+	didctl "github.com/optimus-boc-protocol/controllers/did"
+	loanctl "github.com/optimus-boc-protocol/controllers/loan"
+	tvctl "github.com/optimus-boc-protocol/controllers/tokenvault"
+
+	"github.com/optimus-boc-protocol/eth"
+	"github.com/optimus-boc-protocol/store"
 )
 
 func main() {
+	cfg := LoadConfig()
+
+	// ---------- database ----------
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("db connect: %v", err)
+	}
+	defer pool.Close()
+	dbStore := store.New(pool)
+
+	// ---------- ethereum transactor ----------
+	auth, _, err := eth.NewTransactor(context.Background(), cfg.ChainRPCURL)
+	if err != nil {
+		log.Fatalf("transactor: %v", err)
+	}
+
+	// ---------- services ----------
+	didSvc, err := did.NewDid(cfg.ChainRPCURL, cfg.DIDRegistryAddr)
+	if err != nil {
+		log.Fatalf("did service: %v", err)
+	}
+
+	bnplSvc, err := bnplsvc.NewService(cfg.ChainRPCURL, cfg.BNPLManagerAddr)
+	if err != nil {
+		log.Fatalf("bnpl service: %v", err)
+	}
+
+	daoSvc, err := daosvc.NewService(cfg.ChainRPCURL, cfg.DAOManagerAddr)
+	if err != nil {
+		log.Fatalf("dao service: %v", err)
+	}
+
+	loanSvc, err := loansvc.NewService(cfg.ChainRPCURL, cfg.LoanManagerAddr)
+	if err != nil {
+		log.Fatalf("loan service: %v", err)
+	}
+
+	tvSvc, err := tvsvc.NewService(cfg.ChainRPCURL, cfg.TokenVaultAddr)
+	if err != nil {
+		log.Fatalf("tokenvault service: %v", err)
+	}
+
+	// ---------- controllers ----------
+	didCtrl := didctl.NewController(didSvc, dbStore, auth)
+	bnplCtrl := bnplctl.NewController(bnplSvc, dbStore, auth)
+	daoCtrl := daoctl.NewController(daoSvc, dbStore, auth)
+	loanCtrl := loanctl.NewController(loanSvc, dbStore, auth)
+	tvCtrl := tvctl.NewController(tvSvc, auth)
+
+	// ---------- router ----------
 	r := chi.NewRouter()
-	r.Get("/health", func(w http.ResponseWriter, r * http.Request){
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
 
-	r.Get("/", func(w http.ResponseWriter, r * http.Request){
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hello, Optimus Protocol"))
+		w.Write([]byte("Optimus Protocol API"))
 	})
 
-	port := os.Getenv("PORT")
-	if port == "" { port = "8000"}
+	r.Mount("/did", didCtrl.Routes())
+	r.Mount("/bnpl", bnplCtrl.Routes())
+	r.Mount("/dao", daoCtrl.Routes())
+	r.Mount("/loan", loanCtrl.Routes())
+	r.Mount("/vault", tvCtrl.Routes())
 
-	dbUrl := os.Getenv("DATABASE_URL")
-	pool, err := pgxpool.New(context.Background(), dbUrl)
-	if err != nil { log.Fatalf("db connect: %v", err) }
-	defer pool.Close()
-
-	// initialize blockchain services
-	rpc := os.Getenv("CHAIN_RPC_URL")
-	if rpc == "" {
-		log.Fatal("CHAIN_RPC_URL is required")
-	}
-
-	bnplAddr := os.Getenv("BNPL_MANAGER_ADDRESS")
-	if bnplAddr == "" {
-		log.Fatal("BNPL_MANAGER_ADDRESS is required")
-	}
-
-	bnplSvc, err := services.NewBNPLService(rpc, bnplAddr)
-	if err != nil {
-		log.Fatalf("failed to create bnpl service: %v", err)
-	}
-
-	// DID service/controller
-	didAddr := os.Getenv("DID_REGISTRY_ADDRESS")
-	if didAddr == "" {
-		log.Fatal("DID_REGISTRY_ADDRESS is required")
-	}
-	didSvc, err := did.NewDid(rpc, didAddr)
-	if err != nil {
-		log.Fatalf("failed to create did service: %v", err)
-	}
-	didCtrl := ctl.NewController(didSvc)
-	r.Mount("/", didCtrl.Routes())
-
-	// basic route demonstrating bnpl service usage
-	r.Get("/arrangement/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := chi.URLParam(r, "id")
-		id := new(big.Int)
-		id.SetString(idStr, 10)
-		arr, err := bnplSvc.GetArrangement(r.Context(), id)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(arr)
-	})
-
+	// ---------- server ----------
 	srv := &http.Server{
-		Addr:	":" + port,
-		Handler: r,
-		ReadTimeout: 5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:         ":" + cfg.Port,
+		Handler:      r,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
-	log.Println("server listening on", srv.Addr)
+	log.Printf("Optimus protocol server listening on %s", srv.Addr)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("server error %v", err)
+		log.Fatalf("server error: %v", err)
 	}
 }
