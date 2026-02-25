@@ -117,6 +117,9 @@ func onBNPLPayment(config *shared.Config, runtime cre.Runtime, log *evm.Log) (st
 	}
 	report, err := runtime.GenerateReport(&cre.ReportRequest{
 		EncodedPayload: updateCall,
+		EncoderName:    "evm",
+		SigningAlgo:    "ecdsa",
+		HashingAlgo:    "keccak256",
 	}).Await()
 	if err != nil {
 		return "", fmt.Errorf("generateReport updateRiskProfile: %w", err)

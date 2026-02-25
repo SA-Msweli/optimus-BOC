@@ -99,6 +99,9 @@ func onCronDefaultCheck(config *shared.Config, runtime cre.Runtime, _ *cron.Payl
 		defaultCall, _ := shared.PackMarkDefaulted(loanID)
 		defaultReport, err := runtime.GenerateReport(&cre.ReportRequest{
 			EncodedPayload: defaultCall,
+			EncoderName:    "evm",
+			SigningAlgo:    "ecdsa",
+			HashingAlgo:    "keccak256",
 		}).Await()
 		if err != nil {
 			logger.Warn("generateReport markDefaulted failed", "loan", id, "err", err)
@@ -156,6 +159,9 @@ func adjustRisk(evmClient *evm.Client, runtime cre.Runtime, config *shared.Confi
 
 	riskReport, err := runtime.GenerateReport(&cre.ReportRequest{
 		EncodedPayload: updateCall,
+		EncoderName:    "evm",
+		SigningAlgo:    "ecdsa",
+		HashingAlgo:    "keccak256",
 	}).Await()
 	if err != nil {
 		logger.Warn("generateReport updateRiskProfile failed", "owner", owner.Hex(), "err", err)

@@ -114,6 +114,9 @@ func onCronLateFee(config *shared.Config, runtime cre.Runtime, _ *cron.Payload) 
 			}
 			feeReport, err := runtime.GenerateReport(&cre.ReportRequest{
 				EncodedPayload: feeCall,
+				EncoderName:    "evm",
+				SigningAlgo:    "ecdsa",
+				HashingAlgo:    "keccak256",
 			}).Await()
 			if err != nil {
 				logger.Warn("generateReport applyLateFee failed", "arr", id, "inst", i, "err", err)
@@ -165,6 +168,9 @@ func adjustRisk(evmClient *evm.Client, runtime cre.Runtime, config *shared.Confi
 
 	riskReport, err := runtime.GenerateReport(&cre.ReportRequest{
 		EncodedPayload: updateCall,
+		EncoderName:    "evm",
+		SigningAlgo:    "ecdsa",
+		HashingAlgo:    "keccak256",
 	}).Await()
 	if err != nil {
 		logger.Warn("generateReport updateRiskProfile failed", "owner", owner.Hex(), "err", err)

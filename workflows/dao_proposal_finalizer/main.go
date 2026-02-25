@@ -78,6 +78,9 @@ func onCronFinalizeProposals(config *shared.Config, runtime cre.Runtime, _ *cron
 		}
 		finalizeReport, err := runtime.GenerateReport(&cre.ReportRequest{
 			EncodedPayload: finalizeCall,
+			EncoderName:    "evm",
+			SigningAlgo:    "ecdsa",
+			HashingAlgo:    "keccak256",
 		}).Await()
 		if err != nil {
 			logger.Warn("generateReport finalizeProposal failed", "id", id, "err", err)
