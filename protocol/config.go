@@ -18,6 +18,11 @@ type Config struct {
     DIDRegistryAddr string
     TokenVaultAddr  string
     PrivateKey      string // for signing on‑chain transactions (optional)
+
+    // Privy authentication
+    PrivyAppID     string // PRIVY_APP_ID      – Privy dashboard app identifier
+    PrivyAppSecret string // PRIVY_APP_SECRET  – server-side API secret
+    PrivyJWKS      string // PRIVY_JWKS        – JWKS endpoint for JWT verification
 }
 
 // LoadConfig reads configuration from environment variables and returns
@@ -34,6 +39,12 @@ func LoadConfig() *Config {
         DIDRegistryAddr: mustGetEnv("DID_REGISTRY_ADDRESS"),
         TokenVaultAddr:  mustGetEnv("TOKEN_VAULT_ADDRESS"),
         PrivateKey:      os.Getenv("PRIVATE_KEY"),
+
+        // Privy – all optional; when PrivyJWKS is non-empty the auth
+        // middleware will enforce JWT verification on protected routes.
+        PrivyAppID:     os.Getenv("PRIVY_APP_ID"),
+        PrivyAppSecret: os.Getenv("PRIVY_APP_SECRET"),
+        PrivyJWKS:      getEnv("PRIVY_JWKS", "https://auth.privy.io/api/v1/apps/"+os.Getenv("PRIVY_APP_ID")+"/jwks.json"),
     }
     return cfg
 }

@@ -26,6 +26,7 @@ import (
 	tvctl "github.com/optimus-boc-protocol/controllers/tokenvault"
 
 	"github.com/optimus-boc-protocol/eth"
+	mw "github.com/optimus-boc-protocol/middleware"
 	"github.com/optimus-boc-protocol/store"
 )
 
@@ -82,6 +83,7 @@ func main() {
 	// ---------- router ----------
 	r := chi.NewRouter()
 
+	// Public endpoints (no auth required).
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
@@ -92,11 +94,16 @@ func main() {
 		w.Write([]byte("Optimus Protocol API"))
 	})
 
-	r.Mount("/did", didCtrl.Routes())
-	r.Mount("/bnpl", bnplCtrl.Routes())
-	r.Mount("/dao", daoCtrl.Routes())
-	r.Mount("/loan", loanCtrl.Routes())
-	r.Mount("/vault", tvCtrl.Routes())
+	// Protected endpoints – require a valid Privy JWT when PRIVY_JWKS is set.
+	r.Group(func(r chi.Router) {
+		r.Use(mw.PrivyAuth(cfg.PrivyAppID, cfg.PrivyJWKS))
+
+		r.Mount("/did", didCtrl.Routes())
+		r.Mount("/bnpl", bnplCtrl.Routes())
+		r.Mount("/dao", daoCtrl.Routes())
+		r.Mount("/loan", loanCtrl.Routes())
+		r.Mount("/vault", tvCtrl.Routes())
+	})
 
 	// ---------- server ----------
 	srv := &http.Server{
