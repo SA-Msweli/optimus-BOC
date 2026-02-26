@@ -301,7 +301,7 @@ class _DAOScreenState extends State<DAOScreen>
                             : AppTheme.error)),
                 value: _voteSupport,
                 onChanged: (v) => setState(() => _voteSupport = v),
-                activeColor: AppTheme.secondary,
+                activeThumbColor: AppTheme.secondary,
               ),
               const SizedBox(height: 8),
               SizedBox(

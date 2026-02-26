@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/did_service.dart';
 import '../theme.dart';
 import '../widgets/shared.dart';
@@ -17,6 +18,7 @@ class _DIDScreenState extends State<DIDScreen> {
   final _privyHashCtrl = TextEditingController();
   final _riskScoreCtrl = TextEditingController();
   final _riskHashCtrl = TextEditingController();
+  bool _prefilled = false;
 
   @override
   void dispose() {
@@ -29,6 +31,15 @@ class _DIDScreenState extends State<DIDScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Auto-fill the wallet address from the authenticated Privy session.
+    if (!_prefilled) {
+      final auth = context.read<AuthService>();
+      if (auth.walletAddress != null && _ownerCtrl.text.isEmpty) {
+        _ownerCtrl.text = auth.walletAddress!;
+        _prefilled = true;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Identity (DID)')),
       body: Consumer<DIDService>(
@@ -39,7 +50,9 @@ class _DIDScreenState extends State<DIDScreen> {
               // ── Error / Success banners ──
               if (svc.error != null)
                 ErrorBanner(
-                    message: svc.error!, onDismiss: () => svc.clearError()),
+                  message: svc.error!,
+                  onDismiss: () => svc.clearError(),
+                ),
 
               // ── Owner address input ──
               InfoCard(
@@ -87,23 +100,25 @@ class _DIDScreenState extends State<DIDScreen> {
                   child: Column(
                     children: [
                       KVRow(
-                          label: 'Owner',
-                          value: svc.profile!.owner,
-                          mono: true),
+                        label: 'Owner',
+                        value: svc.profile!.owner,
+                        mono: true,
+                      ),
                       KVRow(
-                          label: 'Registered',
-                          value: svc.profile!.exists ? 'Yes' : 'No'),
+                        label: 'Registered',
+                        value: svc.profile!.exists ? 'Yes' : 'No',
+                      ),
                       KVRow(
-                          label: 'Risk Score',
-                          value: svc.profile!.riskScore.toString()),
-                      KVRow(
-                          label: 'Risk Tier',
-                          value: svc.profile!.riskTier),
+                        label: 'Risk Score',
+                        value: svc.profile!.riskScore.toString(),
+                      ),
+                      KVRow(label: 'Risk Tier', value: svc.profile!.riskTier),
                       if (svc.profile!.privyHash != null)
                         KVRow(
-                            label: 'Privy Hash',
-                            value: svc.profile!.privyHash!,
-                            mono: true),
+                          label: 'Privy Hash',
+                          value: svc.profile!.privyHash!,
+                          mono: true,
+                        ),
                     ],
                   ),
                 ),
@@ -118,8 +133,10 @@ class _DIDScreenState extends State<DIDScreen> {
                   children: [
                     TextField(
                       controller: _privyHashCtrl,
-                      decoration:
-                          AppTheme.inputDecoration('Privy Hash', hint: '0xabc…'),
+                      decoration: AppTheme.inputDecoration(
+                        'Privy Hash',
+                        hint: '0xabc…',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -129,7 +146,8 @@ class _DIDScreenState extends State<DIDScreen> {
                             ? null
                             : () => svc.linkPrivy(
                                 _ownerCtrl.text.trim(),
-                                _privyHashCtrl.text.trim()),
+                                _privyHashCtrl.text.trim(),
+                              ),
                         icon: const Icon(Icons.link),
                         label: const Text('Link'),
                       ),
@@ -155,14 +173,19 @@ class _DIDScreenState extends State<DIDScreen> {
                   children: [
                     TextField(
                       controller: _riskScoreCtrl,
-                      decoration: AppTheme.inputDecoration('New Score', hint: '750'),
+                      decoration: AppTheme.inputDecoration(
+                        'New Score',
+                        hint: '750',
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: _riskHashCtrl,
-                      decoration: AppTheme.inputDecoration('Risk Profile Hash',
-                          hint: '0x…'),
+                      decoration: AppTheme.inputDecoration(
+                        'Risk Profile Hash',
+                        hint: '0x…',
+                      ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -173,7 +196,8 @@ class _DIDScreenState extends State<DIDScreen> {
                             : () => svc.updateRiskProfile(
                                 _ownerCtrl.text.trim(),
                                 _riskScoreCtrl.text.trim(),
-                                _riskHashCtrl.text.trim()),
+                                _riskHashCtrl.text.trim(),
+                              ),
                         icon: const Icon(Icons.update),
                         label: const Text('Update Risk'),
                       ),
@@ -192,7 +216,11 @@ class _DIDScreenState extends State<DIDScreen> {
   }
 
   Widget _actionBtn(
-      String label, IconData icon, bool loading, VoidCallback onPressed) {
+    String label,
+    IconData icon,
+    bool loading,
+    VoidCallback onPressed,
+  ) {
     return ElevatedButton.icon(
       onPressed: loading ? null : onPressed,
       icon: Icon(icon, size: 18),

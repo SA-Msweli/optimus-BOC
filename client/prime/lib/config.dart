@@ -8,6 +8,16 @@ class AppConfig {
   /// Backend API base URL (EC2 instance running the Optimus protocol server).
   static const String backendUrl = 'http://13.60.166.148';
 
+  /// Privy application ID.
+  static const String privyAppId = 'cmiyiw1s40005jx0dho2x9bn4';
+
+  /// Privy client ID (optional, used for embedded wallets).
+  static const String privyClientId = 'cmiyiw1s40005jx0dho2x9bn4';
+
+  /// Custom URL scheme used for Privy OAuth redirects.
+  /// Must match the scheme registered in AndroidManifest.xml / Info.plist.
+  static const String oauthScheme = 'optimus-prime';
+
   /// Ethereum Sepolia JSON-RPC endpoint.
   static const String rpcUrl =
       'https://sepolia.infura.io/v3/88588baac9d8467f87fd40c7ef3905d7';

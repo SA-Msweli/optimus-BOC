@@ -64,8 +64,7 @@ class DIDService extends ChangeNotifier {
     _setLoading();
     try {
       final resp = await _api.getRiskScore(owner);
-      final score =
-          int.tryParse(resp['risk_score']?.toString() ?? '0') ?? 0;
+      final score = int.tryParse(resp['risk_score']?.toString() ?? '0') ?? 0;
       if (_profile != null) {
         _profile = _profile!.copyWith(riskScore: score);
       } else {
@@ -82,11 +81,17 @@ class DIDService extends ChangeNotifier {
 
   /// Update the on-chain risk profile, then refresh local score.
   Future<void> updateRiskProfile(
-      String owner, String newScore, String riskProfileHash) async {
+    String owner,
+    String newScore,
+    String riskProfileHash,
+  ) async {
     _setLoading();
     try {
-      final resp =
-          await _api.updateRiskProfile(owner, newScore, riskProfileHash);
+      final resp = await _api.updateRiskProfile(
+        owner,
+        newScore,
+        riskProfileHash,
+      );
       _lastTx = resp['tx']?.toString();
       await fetchRiskScore(owner);
       return;
@@ -170,9 +175,5 @@ class DIDService extends ChangeNotifier {
     }
 
     _profile = prof;
-  }
-}
-    _error = null;
-    notifyListeners();
   }
 }

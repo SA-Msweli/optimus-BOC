@@ -2,17 +2,49 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 
+/// Callback that returns a fresh JWT access-token (or null).
+typedef TokenProvider = Future<String?> Function();
+
 /// Low-level HTTP client that talks to the Optimus backend API.
 ///
 /// Every method returns the decoded JSON body. On non-2xx responses an
 /// [ApiException] is thrown with the server error message.
+///
+/// After authentication, call [setTokenProvider] so that every request
+/// carries a `Authorization: Bearer <token>` header automatically.
 class ApiClient {
   final http.Client _http;
   final String _base;
 
+  /// When set, every request will include the Privy JWT.
+  TokenProvider? _tokenProvider;
+
   ApiClient({http.Client? client, String? baseUrl})
-      : _http = client ?? http.Client(),
-        _base = baseUrl ?? AppConfig.backendUrl;
+    : _http = client ?? http.Client(),
+      _base = baseUrl ?? AppConfig.backendUrl;
+
+  /// Called by [AuthService] once the user is authenticated.
+  void setTokenProvider(TokenProvider provider) {
+    _tokenProvider = provider;
+  }
+
+  /// Remove the token provider on logout.
+  void clearTokenProvider() {
+    _tokenProvider = null;
+  }
+
+  /// Build the standard headers, injecting the Bearer token when available.
+  Future<Map<String, String>> _authHeaders({bool json = false}) async {
+    final headers = <String, String>{};
+    if (json) headers['Content-Type'] = 'application/json';
+    if (_tokenProvider != null) {
+      final token = await _tokenProvider!();
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    return headers;
+  }
 
   // ─── Health ────────────────────────────────────────────────────────────
 
@@ -36,9 +68,13 @@ class ApiClient {
       _getJson('/did/$owner/privy');
 
   Future<Map<String, dynamic>> updateRiskProfile(
-          String owner, String newScore, String riskProfileHash) =>
-      _postJson('/did/$owner/risk',
-          {'new_score': newScore, 'risk_profile_hash': riskProfileHash});
+    String owner,
+    String newScore,
+    String riskProfileHash,
+  ) => _postJson('/did/$owner/risk', {
+    'new_score': newScore,
+    'risk_profile_hash': riskProfileHash,
+  });
 
   Future<Map<String, dynamic>> getRiskScore(String owner) =>
       _getJson('/did/$owner/risk');
@@ -51,36 +87,37 @@ class ApiClient {
     required String totalAmount,
     required int startTimestamp,
     required int intervalSeconds,
-  }) =>
-      _postJson('/bnpl/arrangements', {
-        'dao_id': daoId,
-        'recipient': recipient,
-        'total_amount': totalAmount,
-        'start_timestamp': startTimestamp,
-        'interval_seconds': intervalSeconds,
-      });
+  }) => _postJson('/bnpl/arrangements', {
+    'dao_id': daoId,
+    'recipient': recipient,
+    'total_amount': totalAmount,
+    'start_timestamp': startTimestamp,
+    'interval_seconds': intervalSeconds,
+  });
 
   Future<Map<String, dynamic>> getArrangement(String id) =>
       _getJson('/bnpl/arrangements/$id');
 
   Future<Map<String, dynamic>> makeArrangementPayment(
-          String id, int installment) =>
-      _postJson(
-          '/bnpl/arrangements/$id/payment', {'installment': installment});
+    String id,
+    int installment,
+  ) =>
+      _postJson('/bnpl/arrangements/$id/payment', {'installment': installment});
 
   Future<Map<String, dynamic>> activateArrangement(String id) =>
       _postJson('/bnpl/arrangements/$id/activate', {});
 
   Future<Map<String, dynamic>> applyLateFee(String id, int installment) =>
-      _postJson(
-          '/bnpl/arrangements/$id/latefee', {'installment': installment});
+      _postJson('/bnpl/arrangements/$id/latefee', {'installment': installment});
 
   Future<Map<String, dynamic>> rescheduleArrangement(
-          String id, int newStart, int newInterval) =>
-      _postJson('/bnpl/arrangements/$id/reschedule', {
-        'new_start_timestamp': newStart,
-        'new_interval_seconds': newInterval,
-      });
+    String id,
+    int newStart,
+    int newInterval,
+  ) => _postJson('/bnpl/arrangements/$id/reschedule', {
+    'new_start_timestamp': newStart,
+    'new_interval_seconds': newInterval,
+  });
 
   // ─── Loans ─────────────────────────────────────────────────────────────
 
@@ -90,14 +127,13 @@ class ApiClient {
     required String principal,
     required String interestRateBps,
     required String durationSeconds,
-  }) =>
-      _postJson('/loan', {
-        'borrower': borrower,
-        'dao_id': daoId,
-        'principal': principal,
-        'interest_rate_bps': interestRateBps,
-        'duration_seconds': durationSeconds,
-      });
+  }) => _postJson('/loan', {
+    'borrower': borrower,
+    'dao_id': daoId,
+    'principal': principal,
+    'interest_rate_bps': interestRateBps,
+    'duration_seconds': durationSeconds,
+  });
 
   Future<Map<String, dynamic>> getLoan(String id) => _getJson('/loan/$id');
 
@@ -118,10 +154,11 @@ class ApiClient {
 
   // ─── DAO ───────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> createDAO(
-          {required int goal, required int votingPeriodDays}) =>
-      _postJson(
-          '/dao', {'goal': goal, 'voting_period_days': votingPeriodDays});
+  Future<Map<String, dynamic>> createDAO({
+    required int goal,
+    required int votingPeriodDays,
+  }) =>
+      _postJson('/dao', {'goal': goal, 'voting_period_days': votingPeriodDays});
 
   Future<Map<String, dynamic>> joinDAO(String daoId, String investment) =>
       _postJson('/dao/$daoId/join', {'investment': investment});
@@ -130,11 +167,13 @@ class ApiClient {
       _postJson('/dao/$daoId/propose', {'data': data});
 
   Future<Map<String, dynamic>> vote(
-          String proposalId, bool support, {String? daoId}) =>
-      _postJson('/dao/proposal/$proposalId/vote', {
-        'support': support,
-        if (daoId != null) 'dao_id': daoId,
-      });
+    String proposalId,
+    bool support, {
+    String? daoId,
+  }) => _postJson('/dao/proposal/$proposalId/vote', {
+    'support': support,
+    'dao_id': ?daoId,
+  });
 
   Future<Map<String, dynamic>> finalizeProposal(String proposalId) =>
       _postJson('/dao/proposal/$proposalId/finalize', {});
@@ -142,7 +181,8 @@ class ApiClient {
   Future<Map<String, dynamic>> executeProposal(String proposalId) =>
       _postJson('/dao/proposal/$proposalId/execute', {});
 
-  Future<Map<String, dynamic>> setBnplTerms(String daoId, {
+  Future<Map<String, dynamic>> setBnplTerms(
+    String daoId, {
     required String numInstallments,
     required String minDays,
     required String maxDays,
@@ -150,16 +190,15 @@ class ApiClient {
     required String graceDays,
     required bool rescheduleAllowed,
     required String minDownBps,
-  }) =>
-      _postJson('/dao/$daoId/bnpl-terms', {
-        'num_installments': numInstallments,
-        'min_days': minDays,
-        'max_days': maxDays,
-        'late_fee_bps': lateFeeBps,
-        'grace_days': graceDays,
-        'reschedule_allowed': rescheduleAllowed,
-        'min_down_bps': minDownBps,
-      });
+  }) => _postJson('/dao/$daoId/bnpl-terms', {
+    'num_installments': numInstallments,
+    'min_days': minDays,
+    'max_days': maxDays,
+    'late_fee_bps': lateFeeBps,
+    'grace_days': graceDays,
+    'reschedule_allowed': rescheduleAllowed,
+    'min_down_bps': minDownBps,
+  });
 
   Future<Map<String, dynamic>> getBnplTerms(String daoId) =>
       _getJson('/dao/$daoId/bnpl-terms');
@@ -167,8 +206,7 @@ class ApiClient {
   Future<Map<String, dynamic>> getTreasuryBalance(String daoId) =>
       _getJson('/dao/$daoId/treasury');
 
-  Future<Map<String, dynamic>> creditTreasury(
-          String daoId, String amount) =>
+  Future<Map<String, dynamic>> creditTreasury(String daoId, String amount) =>
       _postJson('/dao/$daoId/treasury/credit', {'amount': amount});
 
   // ─── Token Vault ───────────────────────────────────────────────────────
@@ -186,7 +224,8 @@ class ApiClient {
 
   Future<dynamic> _get(String path) async {
     final uri = Uri.parse('$_base$path');
-    final resp = await _http.get(uri);
+    final headers = await _authHeaders();
+    final resp = await _http.get(uri, headers: headers);
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       try {
         return jsonDecode(resp.body);
@@ -203,11 +242,14 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _postJson(
-      String path, Map<String, dynamic> body) async {
+    String path,
+    Map<String, dynamic> body,
+  ) async {
     final uri = Uri.parse('$_base$path');
+    final headers = await _authHeaders(json: true);
     final resp = await _http.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
       body: jsonEncode(body),
     );
     if (resp.statusCode >= 200 && resp.statusCode < 300) {

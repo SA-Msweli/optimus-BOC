@@ -27,7 +27,7 @@ class Arrangement {
     final wei = BigInt.tryParse(totalAmount) ?? BigInt.zero;
     final eth = wei / BigInt.from(10).pow(18);
     final remainder = wei % BigInt.from(10).pow(18);
-    return '${eth}.${remainder.toString().padLeft(18, '0').substring(0, 4)}';
+    return '$eth.${remainder.toString().padLeft(18, '0').substring(0, 4)}';
   }
 
   /// Per-installment amount (total / numInstallments).

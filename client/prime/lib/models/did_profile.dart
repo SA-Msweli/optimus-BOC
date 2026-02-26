@@ -30,17 +30,10 @@ class DIDProfile {
     bool? exists,
     int? riskScore,
     String? privyHash,
-  }) =>
-      DIDProfile(
-        owner: owner ?? this.owner,
-        exists: exists ?? this.exists,
-        riskScore: riskScore ?? this.riskScore,
-        privyHash: privyHash ?? this.privyHash,
-      );
-}
-
-int _parseInt(dynamic v) {
-  if (v is int) return v;
-  if (v is String) return int.tryParse(v) ?? 0;
-  return 0;
+  }) => DIDProfile(
+    owner: owner ?? this.owner,
+    exists: exists ?? this.exists,
+    riskScore: riskScore ?? this.riskScore,
+    privyHash: privyHash ?? this.privyHash,
+  );
 }
