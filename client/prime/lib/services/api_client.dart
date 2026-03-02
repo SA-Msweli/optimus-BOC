@@ -101,8 +101,12 @@ class ApiClient {
   Future<Map<String, dynamic>> makeArrangementPayment(
     String id,
     int installment,
+    String amount,
   ) =>
-      _postJson('/bnpl/arrangements/$id/payment', {'installment': installment});
+      _postJson('/bnpl/arrangements/$id/payment', {
+        'installment': installment,
+        'amount': amount,
+      });
 
   Future<Map<String, dynamic>> activateArrangement(String id) =>
       _postJson('/bnpl/arrangements/$id/activate', {});
@@ -123,13 +127,12 @@ class ApiClient {
 
   Future<Map<String, dynamic>> createLoan({
     required String borrower,
-    required String daoId,
     required String principal,
     required String interestRateBps,
     required String durationSeconds,
   }) => _postJson('/loan', {
     'borrower': borrower,
-    'dao_id': daoId,
+    'dao_id': '0',
     'principal': principal,
     'interest_rate_bps': interestRateBps,
     'duration_seconds': durationSeconds,
@@ -140,8 +143,8 @@ class ApiClient {
   Future<Map<String, dynamic>> approveLoan(String id) =>
       _postJson('/loan/$id/approve', {});
 
-  Future<Map<String, dynamic>> makeLoanPayment(String id) =>
-      _postJson('/loan/$id/payment', {});
+  Future<Map<String, dynamic>> makeLoanPayment(String id, String amount) =>
+      _postJson('/loan/$id/payment', {'amount': amount});
 
   Future<Map<String, dynamic>> markLoanDefaulted(String id) =>
       _postJson('/loan/$id/default', {});

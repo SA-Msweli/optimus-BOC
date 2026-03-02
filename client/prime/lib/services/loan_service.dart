@@ -28,7 +28,6 @@ class LoanService extends ChangeNotifier {
 
   Future<void> createLoan({
     required String borrower,
-    required String daoId,
     required String principal,
     required String interestRateBps,
     required String durationSeconds,
@@ -39,7 +38,6 @@ class LoanService extends ChangeNotifier {
     try {
       final resp = await _api.createLoan(
         borrower: borrower,
-        daoId: daoId,
         principal: principal,
         interestRateBps: interestRateBps,
         durationSeconds: durationSeconds,
@@ -91,29 +89,12 @@ class LoanService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> makePayment(String id) async {
+  Future<void> makePayment(String id, String amount) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      final resp = await _api.makeLoanPayment(id);
-      _lastTx = resp['tx']?.toString();
-      await fetchLoan(id);
-    } on ApiException catch (e) {
-      _error = e.message;
-    } catch (e) {
-      _error = e.toString();
-    }
-    _loading = false;
-    notifyListeners();
-  }
-
-  Future<void> markDefaulted(String id) async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final resp = await _api.markLoanDefaulted(id);
+      final resp = await _api.makeLoanPayment(id, amount);
       _lastTx = resp['tx']?.toString();
       await fetchLoan(id);
     } on ApiException catch (e) {

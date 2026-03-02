@@ -69,46 +69,12 @@ class BNPLService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> makePayment(String id, int installment) async {
+  Future<void> makePayment(String id, int installment, String amount) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      final resp = await _api.makeArrangementPayment(id, installment);
-      _lastTx = resp['tx']?.toString();
-      await fetchArrangement(id);
-    } on ApiException catch (e) {
-      _error = e.message;
-    } catch (e) {
-      _error = e.toString();
-    }
-    _loading = false;
-    notifyListeners();
-  }
-
-  Future<void> activate(String id) async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final resp = await _api.activateArrangement(id);
-      _lastTx = resp['tx']?.toString();
-      await fetchArrangement(id);
-    } on ApiException catch (e) {
-      _error = e.message;
-    } catch (e) {
-      _error = e.toString();
-    }
-    _loading = false;
-    notifyListeners();
-  }
-
-  Future<void> applyLateFee(String id, int installment) async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final resp = await _api.applyLateFee(id, installment);
+      final resp = await _api.makeArrangementPayment(id, installment, amount);
       _lastTx = resp['tx']?.toString();
       await fetchArrangement(id);
     } on ApiException catch (e) {

@@ -6,6 +6,9 @@ import '../widgets/shared.dart';
 
 /// Screen for DAO governance: create DAO, join, propose, vote, finalize,
 /// execute, set BNPL terms, and manage treasury.
+///
+/// Proposal data is built from structured fields (token, amount, recipient)
+/// for treasury withdrawal proposals, or raw hex for generic proposals.
 class DAOScreen extends StatefulWidget {
   const DAOScreen({super.key});
 
@@ -18,7 +21,7 @@ class _DAOScreenState extends State<DAOScreen>
   late TabController _tabs;
 
   // ── Create DAO ──
-  final _goalCtrl = TextEditingController();
+  int _selectedGoal = 0;
   final _votingPeriodCtrl = TextEditingController();
 
   // ── Join DAO ──
@@ -27,7 +30,12 @@ class _DAOScreenState extends State<DAOScreen>
 
   // ── Proposals ──
   final _proposeDaoIdCtrl = TextEditingController();
-  final _proposeDataCtrl = TextEditingController();
+  // Structured proposal fields (for treasury withdrawals)
+  final _propTokenCtrl = TextEditingController();
+  final _propAmountCtrl = TextEditingController();
+  final _propRecipientCtrl = TextEditingController();
+  final _propRawDataCtrl = TextEditingController();
+  bool _useRawProposal = false;
 
   // ── Vote ──
   final _voteProposalIdCtrl = TextEditingController();
@@ -60,12 +68,14 @@ class _DAOScreenState extends State<DAOScreen>
   @override
   void dispose() {
     _tabs.dispose();
-    _goalCtrl.dispose();
     _votingPeriodCtrl.dispose();
     _joinDaoIdCtrl.dispose();
     _investmentCtrl.dispose();
     _proposeDaoIdCtrl.dispose();
-    _proposeDataCtrl.dispose();
+    _propTokenCtrl.dispose();
+    _propAmountCtrl.dispose();
+    _propRecipientCtrl.dispose();
+    _propRawDataCtrl.dispose();
     _voteProposalIdCtrl.dispose();
     _voteDaoIdCtrl.dispose();
     _actionProposalIdCtrl.dispose();
@@ -132,18 +142,20 @@ class _DAOScreenState extends State<DAOScreen>
         if (svc.lastTx != null)
           SuccessBanner(message: 'TX: ${truncateAddress(svc.lastTx!)}'),
 
-        // Create DAO
+        // Create DAO (no name field — contract stores goal enum only)
         InfoCard(
           title: 'Create DAO',
           child: Column(
             children: [
-              TextField(
-                controller: _goalCtrl,
-                decoration: AppTheme.inputDecoration(
-                  'Goal',
-                  hint: '0=SAVINGS, 1=LENDING, 2=INVESTMENT',
-                ),
-                keyboardType: TextInputType.number,
+              DropdownButtonFormField<int>(
+                value: _selectedGoal,
+                decoration: AppTheme.inputDecoration('Goal'),
+                items: const [
+                  DropdownMenuItem(value: 0, child: Text('Savings')),
+                  DropdownMenuItem(value: 1, child: Text('Lending')),
+                  DropdownMenuItem(value: 2, child: Text('Investment')),
+                ],
+                onChanged: (v) => setState(() => _selectedGoal = v ?? 0),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -161,7 +173,7 @@ class _DAOScreenState extends State<DAOScreen>
                   onPressed: svc.loading
                       ? null
                       : () => svc.createDAO(
-                          goal: int.tryParse(_goalCtrl.text) ?? 0,
+                          goal: _selectedGoal,
                           votingPeriodDays:
                               int.tryParse(_votingPeriodCtrl.text) ?? 7,
                         ),
@@ -195,9 +207,9 @@ class _DAOScreenState extends State<DAOScreen>
 
         const Divider(height: 24),
 
-        // Join DAO
+        // Register Member (Join DAO)
         InfoCard(
-          title: 'Join DAO',
+          title: 'Register Member',
           child: Column(
             children: [
               TextField(
@@ -209,8 +221,8 @@ class _DAOScreenState extends State<DAOScreen>
               TextField(
                 controller: _investmentCtrl,
                 decoration: AppTheme.inputDecoration(
-                  'Investment (wei)',
-                  hint: '1000000000000000000',
+                  'Voting Weight (accounting units)',
+                  hint: '1000 — determines vote weight, not ETH transfer',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -225,7 +237,7 @@ class _DAOScreenState extends State<DAOScreen>
                           _investmentCtrl.text.trim(),
                         ),
                   icon: const Icon(Icons.person_add),
-                  label: const Text('Join'),
+                  label: const Text('Register'),
                 ),
               ),
             ],
@@ -250,7 +262,7 @@ class _DAOScreenState extends State<DAOScreen>
         if (svc.lastTx != null)
           SuccessBanner(message: 'TX: ${truncateAddress(svc.lastTx!)}'),
 
-        // Propose
+        // Propose — structured form for treasury proposals
         InfoCard(
           title: 'Create Proposal',
           child: Column(
@@ -261,24 +273,74 @@ class _DAOScreenState extends State<DAOScreen>
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _proposeDataCtrl,
-                decoration: AppTheme.inputDecoration(
-                  'Proposal Data (hex)',
-                  hint: '0x…',
+              SwitchListTile(
+                title: Text(
+                  _useRawProposal ? 'Raw Hex Data' : 'Treasury Withdrawal',
+                  style: AppTheme.subheading,
                 ),
-                maxLines: 3,
+                subtitle: Text(
+                  _useRawProposal
+                      ? 'Enter ABI-encoded bytes directly'
+                      : 'Withdraw tokens from vault to recipient',
+                ),
+                value: _useRawProposal,
+                onChanged: (v) => setState(() => _useRawProposal = v),
               ),
+              const SizedBox(height: 8),
+              if (!_useRawProposal) ...[
+                TextField(
+                  controller: _propTokenCtrl,
+                  decoration: AppTheme.inputDecoration(
+                    'Token Address (0x…)',
+                    hint: '0x… (ERC-20 token to withdraw)',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _propAmountCtrl,
+                  decoration: AppTheme.inputDecoration(
+                    'Amount (wei)',
+                    hint: '1000000000000000000',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _propRecipientCtrl,
+                  decoration: AppTheme.inputDecoration(
+                    'Recipient Address (0x…)',
+                    hint: '0x… (receives the tokens)',
+                  ),
+                ),
+              ] else ...[
+                TextField(
+                  controller: _propRawDataCtrl,
+                  decoration: AppTheme.inputDecoration(
+                    'Proposal Data (hex)',
+                    hint: '0x…',
+                  ),
+                  maxLines: 3,
+                ),
+              ],
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: svc.loading
                       ? null
-                      : () => svc.propose(
-                          _proposeDaoIdCtrl.text.trim(),
-                          _proposeDataCtrl.text.trim(),
-                        ),
+                      : () {
+                          final daoId = _proposeDaoIdCtrl.text.trim();
+                          if (_useRawProposal) {
+                            svc.propose(daoId, _propRawDataCtrl.text.trim());
+                          } else {
+                            svc.proposeTreasuryWithdrawal(
+                              daoId,
+                              token: _propTokenCtrl.text.trim(),
+                              amount: _propAmountCtrl.text.trim(),
+                              recipient: _propRecipientCtrl.text.trim(),
+                            );
+                          }
+                        },
                   icon: const Icon(Icons.description),
                   label: const Text('Propose'),
                 ),
@@ -289,7 +351,7 @@ class _DAOScreenState extends State<DAOScreen>
 
         const Divider(height: 24),
 
-        // Vote
+        // Vote (DAO ID is required for membership check)
         InfoCard(
           title: 'Cast Vote',
           child: Column(
@@ -303,8 +365,8 @@ class _DAOScreenState extends State<DAOScreen>
               TextField(
                 controller: _voteDaoIdCtrl,
                 decoration: AppTheme.inputDecoration(
-                  'DAO ID (optional)',
-                  hint: '1',
+                  'DAO ID',
+                  hint: 'Required for membership verification',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -328,10 +390,14 @@ class _DAOScreenState extends State<DAOScreen>
                       ? null
                       : () {
                           final daoId = _voteDaoIdCtrl.text.trim();
+                          if (daoId.isEmpty) {
+                            svc.setError('DAO ID is required to verify membership');
+                            return;
+                          }
                           svc.vote(
                             _voteProposalIdCtrl.text.trim(),
                             _voteSupport,
-                            daoId: daoId.isEmpty ? null : daoId,
+                            daoId: daoId,
                           );
                         },
                   icon: const Icon(Icons.how_to_vote),

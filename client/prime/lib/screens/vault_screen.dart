@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/vault_service.dart';
-import '../config.dart';
 import '../theme.dart';
 import '../widgets/shared.dart';
 
 /// Screen for token vault operations: deposit, withdraw, check balance.
+///
+/// The token field should be an ERC-20 token address (NOT the vault contract
+/// address). Users deposit/withdraw a specific ERC-20 token into the vault.
 class VaultScreen extends StatefulWidget {
   const VaultScreen({super.key});
 
@@ -20,8 +22,6 @@ class _VaultScreenState extends State<VaultScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill with the TokenVault contract address for convenience
-    _tokenCtrl.text = AppConfig.tokenVaultAddress;
   }
 
   @override
@@ -48,12 +48,12 @@ class _VaultScreenState extends State<VaultScreen> {
 
             // ── Token address ──
             InfoCard(
-              title: 'Token Address',
+              title: 'ERC-20 Token Address',
               child: TextField(
                 controller: _tokenCtrl,
                 decoration: AppTheme.inputDecoration(
-                  'Token (0x…)',
-                  hint: '0x…',
+                  'ERC-20 Token (0x…)',
+                  hint: 'Enter the token contract address to deposit/withdraw',
                 ),
               ),
             ),

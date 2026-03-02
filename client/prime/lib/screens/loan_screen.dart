@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/loan_service.dart';
 import '../theme.dart';
 import '../widgets/shared.dart';
 
-/// Screen for loan management: create, lookup, approve, pay, default.
+/// Screen for loan management: create, lookup, approve, pay.
+///
+/// Removed: DAO ID field (contract ignores the second param),
+///          Mark Defaulted button (CRE loan_default_monitor only).
 class LoanScreen extends StatefulWidget {
   const LoanScreen({super.key});
 
@@ -18,26 +22,38 @@ class _LoanScreenState extends State<LoanScreen> {
 
   // ── Create ──
   final _borrowerCtrl = TextEditingController();
-  final _daoIdCtrl = TextEditingController();
   final _principalCtrl = TextEditingController();
   final _rateBpsCtrl = TextEditingController();
   final _durationCtrl = TextEditingController();
 
+  // ── Payment ──
+  final _payAmountCtrl = TextEditingController();
+
   bool _showCreate = false;
+  bool _prefilled = false;
 
   @override
   void dispose() {
     _idCtrl.dispose();
     _borrowerCtrl.dispose();
-    _daoIdCtrl.dispose();
     _principalCtrl.dispose();
     _rateBpsCtrl.dispose();
     _durationCtrl.dispose();
+    _payAmountCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Auto-fill borrower from authenticated Privy wallet (spec: caller = borrower).
+    if (!_prefilled) {
+      final auth = context.read<AuthService>();
+      if (auth.walletAddress != null && _borrowerCtrl.text.isEmpty) {
+        _borrowerCtrl.text = auth.walletAddress!;
+        _prefilled = true;
+      }
+    }
+
     return Consumer<LoanService>(
       builder: (context, svc, _) {
         return ListView(
@@ -94,10 +110,6 @@ class _LoanScreenState extends State<LoanScreen> {
                       mono: true,
                     ),
                     KVRow(
-                      label: 'DAO / Address',
-                      value: svc.current!.daoAddress,
-                    ),
-                    KVRow(
                       label: 'Principal (wei)',
                       value: svc.current!.principal,
                     ),
@@ -135,7 +147,40 @@ class _LoanScreenState extends State<LoanScreen> {
                 ),
               ),
 
-              // ── Actions on existing loan ──
+              // ── Make Payment ──
+              InfoCard(
+                title: 'Make Payment',
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _payAmountCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'Payment Amount (wei)',
+                        hint: svc.amountOwed == '0'
+                            ? '1000000000000000000'
+                            : svc.amountOwed,
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: svc.loading
+                            ? null
+                            : () => svc.makePayment(
+                                svc.current!.loanId,
+                                _payAmountCtrl.text.trim(),
+                              ),
+                        icon: const Icon(Icons.payment, size: 18),
+                        label: const Text('Pay'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Other actions ──
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -146,23 +191,6 @@ class _LoanScreenState extends State<LoanScreen> {
                         : () => svc.approveLoan(svc.current!.loanId),
                     icon: const Icon(Icons.check_circle, size: 18),
                     label: const Text('Approve'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: svc.loading
-                        ? null
-                        : () => svc.makePayment(svc.current!.loanId),
-                    icon: const Icon(Icons.payment, size: 18),
-                    label: const Text('Make Payment'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: svc.loading
-                        ? null
-                        : () => svc.markDefaulted(svc.current!.loanId),
-                    icon: const Icon(Icons.cancel, size: 18),
-                    label: const Text('Mark Default'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.error,
-                    ),
                   ),
                   OutlinedButton.icon(
                     onPressed: svc.loading
@@ -207,12 +235,6 @@ class _LoanScreenState extends State<LoanScreen> {
           ),
           const SizedBox(height: 8),
           TextField(
-            controller: _daoIdCtrl,
-            decoration: AppTheme.inputDecoration('DAO ID', hint: '1'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 8),
-          TextField(
             controller: _principalCtrl,
             decoration: AppTheme.inputDecoration(
               'Principal (wei)',
@@ -225,7 +247,7 @@ class _LoanScreenState extends State<LoanScreen> {
             controller: _rateBpsCtrl,
             decoration: AppTheme.inputDecoration(
               'Interest Rate (bps)',
-              hint: '500',
+              hint: '500 = 5.00%',
             ),
             keyboardType: TextInputType.number,
           ),
@@ -234,7 +256,7 @@ class _LoanScreenState extends State<LoanScreen> {
             controller: _durationCtrl,
             decoration: AppTheme.inputDecoration(
               'Duration (seconds)',
-              hint: '2592000',
+              hint: '2592000 = 30 days',
             ),
             keyboardType: TextInputType.number,
           ),
@@ -246,7 +268,6 @@ class _LoanScreenState extends State<LoanScreen> {
                   ? null
                   : () => svc.createLoan(
                       borrower: _borrowerCtrl.text.trim(),
-                      daoId: _daoIdCtrl.text.trim(),
                       principal: _principalCtrl.text.trim(),
                       interestRateBps: _rateBpsCtrl.text.trim(),
                       durationSeconds: _durationCtrl.text.trim(),
@@ -276,7 +297,7 @@ class _LoanScreenState extends State<LoanScreen> {
       case 0:
         return 'PENDING';
       case 1:
-        return 'ACTIVE';
+        return 'APPROVED';
       case 2:
         return 'REPAID';
       case 3:

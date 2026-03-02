@@ -5,7 +5,10 @@ import '../services/did_service.dart';
 import '../theme.dart';
 import '../widgets/shared.dart';
 
-/// Screen for DID identity management: create, lookup, risk score, privy linking.
+/// Screen for DID identity management: create, lookup, and view profile.
+///
+/// Risk profiles are managed exclusively by CRE workflows (RISK_UPDATER_ROLE).
+/// Privy credentials are auto-linked by [AuthService] on login.
 class DIDScreen extends StatefulWidget {
   const DIDScreen({super.key});
 
@@ -15,17 +18,11 @@ class DIDScreen extends StatefulWidget {
 
 class _DIDScreenState extends State<DIDScreen> {
   final _ownerCtrl = TextEditingController();
-  final _privyHashCtrl = TextEditingController();
-  final _riskScoreCtrl = TextEditingController();
-  final _riskHashCtrl = TextEditingController();
   bool _prefilled = false;
 
   @override
   void dispose() {
     _ownerCtrl.dispose();
-    _privyHashCtrl.dispose();
-    _riskScoreCtrl.dispose();
-    _riskHashCtrl.dispose();
     super.dispose();
   }
 
@@ -51,6 +48,8 @@ class _DIDScreenState extends State<DIDScreen> {
                 message: svc.error!,
                 onDismiss: () => svc.clearError(),
               ),
+            if (svc.lastTx != null)
+              SuccessBanner(message: 'TX: ${truncateAddress(svc.lastTx!)}'),
 
             // ── Owner address input ──
             InfoCard(
@@ -65,6 +64,7 @@ class _DIDScreenState extends State<DIDScreen> {
             ),
 
             // ── Action buttons ──
+            // "Lookup DID" fetches existence + risk score + privy hash in one call.
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -81,17 +81,11 @@ class _DIDScreenState extends State<DIDScreen> {
                   svc.loading,
                   () => svc.lookupDID(_ownerCtrl.text.trim()),
                 ),
-                _actionBtn(
-                  'Fetch Risk Score',
-                  Icons.assessment,
-                  svc.loading,
-                  () => svc.fetchRiskScore(_ownerCtrl.text.trim()),
-                ),
               ],
             ),
             const SizedBox(height: 16),
 
-            // ── Profile display ──
+            // ── Profile display (populated by lookupDID) ──
             if (svc.profile != null) ...[
               InfoCard(
                 title: 'DID Profile',
@@ -122,83 +116,23 @@ class _DIDScreenState extends State<DIDScreen> {
               ),
             ],
 
-            const Divider(height: 32),
+            const SizedBox(height: 16),
 
-            // ── Link Privy ──
+            // ── Info: Privy auto-linked, risk managed by CRE ──
             InfoCard(
-              title: 'Link Privy Identity',
+              title: 'Identity Notes',
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
-                    controller: _privyHashCtrl,
-                    decoration: AppTheme.inputDecoration(
-                      'Privy Hash',
-                      hint: '0xabc…',
-                    ),
+                  Text(
+                    'Privy credential is automatically linked on login.',
+                    style: AppTheme.body,
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.linkPrivy(
-                              _ownerCtrl.text.trim(),
-                              _privyHashCtrl.text.trim(),
-                            ),
-                      icon: const Icon(Icons.link),
-                      label: const Text('Link'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Fetch Privy Hash ──
-            _actionBtn(
-              'Fetch Privy Hash',
-              Icons.tag,
-              svc.loading,
-              () => svc.fetchPrivyHash(_ownerCtrl.text.trim()),
-            ),
-
-            const Divider(height: 32),
-
-            // ── Update Risk Profile ──
-            InfoCard(
-              title: 'Update Risk Profile',
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _riskScoreCtrl,
-                    decoration: AppTheme.inputDecoration(
-                      'New Score',
-                      hint: '750',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _riskHashCtrl,
-                    decoration: AppTheme.inputDecoration(
-                      'Risk Profile Hash',
-                      hint: '0x…',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.updateRiskProfile(
-                              _ownerCtrl.text.trim(),
-                              _riskScoreCtrl.text.trim(),
-                              _riskHashCtrl.text.trim(),
-                            ),
-                      icon: const Icon(Icons.update),
-                      label: const Text('Update Risk'),
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Risk score is updated by CRE workflows based on '
+                    'loan and BNPL activity.',
+                    style: AppTheme.body,
                   ),
                 ],
               ),

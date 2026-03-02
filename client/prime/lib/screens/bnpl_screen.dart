@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../services/bnpl_service.dart';
 import '../theme.dart';
 import '../widgets/shared.dart';
 
-/// Screen for BNPL arrangement management: create, lookup, pay, activate, etc.
+/// Screen for BNPL arrangement management: create, lookup, pay, reschedule.
+///
+/// Removed: Activate (redundant – auto-activates on first payment),
+///          Late Fee (CRE-only via bnpl_late_fee cron workflow).
 class BNPLScreen extends StatefulWidget {
   const BNPLScreen({super.key});
 
@@ -25,12 +29,14 @@ class _BNPLScreenState extends State<BNPLScreen> {
 
   // ── Payment ──
   final _installmentCtrl = TextEditingController();
+  final _payAmountCtrl = TextEditingController();
 
   // ── Reschedule ──
   final _newStartCtrl = TextEditingController();
   final _newIntervalCtrl = TextEditingController();
 
   bool _showCreate = false;
+  bool _prefilled = false;
 
   @override
   void dispose() {
@@ -41,6 +47,7 @@ class _BNPLScreenState extends State<BNPLScreen> {
     _startCtrl.dispose();
     _intervalCtrl.dispose();
     _installmentCtrl.dispose();
+    _payAmountCtrl.dispose();
     _newStartCtrl.dispose();
     _newIntervalCtrl.dispose();
     super.dispose();
@@ -48,6 +55,15 @@ class _BNPLScreenState extends State<BNPLScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Auto-fill the recipient from the authenticated Privy wallet.
+    if (!_prefilled) {
+      final auth = context.read<AuthService>();
+      if (auth.walletAddress != null && _recipientCtrl.text.isEmpty) {
+        _recipientCtrl.text = auth.walletAddress!;
+        _prefilled = true;
+      }
+    }
+
     return Consumer<BNPLService>(
       builder: (context, svc, _) {
         return ListView(
@@ -133,59 +149,52 @@ class _BNPLScreenState extends State<BNPLScreen> {
                 ),
               ),
 
-              // ── Actions on existing arrangement ──
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: svc.loading
-                        ? null
-                        : () => svc.activate(svc.current!.arrangementId),
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('Activate'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: svc.loading
-                        ? null
-                        : () {
-                            final inst =
-                                int.tryParse(_installmentCtrl.text) ?? 0;
-                            svc.makePayment(svc.current!.arrangementId, inst);
-                          },
-                    icon: const Icon(Icons.payment, size: 18),
-                    label: const Text('Pay'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: svc.loading
-                        ? null
-                        : () {
-                            final inst =
-                                int.tryParse(_installmentCtrl.text) ?? 0;
-                            svc.applyLateFee(svc.current!.arrangementId, inst);
-                          },
-                    icon: const Icon(Icons.warning_amber, size: 18),
-                    label: const Text('Late Fee'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.warning,
+              // ── Make Payment ──
+              InfoCard(
+                title: 'Make Payment',
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _installmentCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'Installment #',
+                        hint: '0',
+                      ),
+                      keyboardType: TextInputType.number,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Installment picker for pay / late fee
-              TextField(
-                controller: _installmentCtrl,
-                decoration: AppTheme.inputDecoration(
-                  'Installment #',
-                  hint: '0',
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _payAmountCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'Payment Amount (wei)',
+                        hint: svc.current!.installmentAmount,
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: svc.loading
+                            ? null
+                            : () {
+                                final inst =
+                                    int.tryParse(_installmentCtrl.text) ?? 0;
+                                svc.makePayment(
+                                  svc.current!.arrangementId,
+                                  inst,
+                                  _payAmountCtrl.text.trim(),
+                                );
+                              },
+                        icon: const Icon(Icons.payment, size: 18),
+                        label: const Text('Pay Installment'),
+                      ),
+                    ),
+                  ],
                 ),
-                keyboardType: TextInputType.number,
               ),
-              const SizedBox(height: 12),
 
-              // Reschedule
+              // ── Reschedule ──
               InfoCard(
                 title: 'Reschedule',
                 child: Column(
@@ -247,19 +256,22 @@ class _BNPLScreenState extends State<BNPLScreen> {
 
   Widget _buildCreateForm(BNPLService svc) {
     return InfoCard(
-      title: 'Create Arrangement',
+      title: 'Create BNPL Arrangement',
       child: Column(
         children: [
           TextField(
             controller: _daoIdCtrl,
-            decoration: AppTheme.inputDecoration('DAO ID', hint: '1'),
+            decoration: AppTheme.inputDecoration(
+              'DAO ID',
+              hint: 'Sponsoring DAO',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _recipientCtrl,
             decoration: AppTheme.inputDecoration(
-              'Recipient (0x…)',
+              'Recipient Address',
               hint: '0x…',
             ),
           ),
@@ -268,7 +280,7 @@ class _BNPLScreenState extends State<BNPLScreen> {
             controller: _totalCtrl,
             decoration: AppTheme.inputDecoration(
               'Total Amount (wei)',
-              hint: '1000000000000000000',
+              hint: 'e.g. 1000000000000000000 = 1 ETH',
             ),
             keyboardType: TextInputType.number,
           ),
@@ -276,7 +288,7 @@ class _BNPLScreenState extends State<BNPLScreen> {
           TextField(
             controller: _startCtrl,
             decoration: AppTheme.inputDecoration(
-              'Start Timestamp (unix)',
+              'Start Date (unix timestamp)',
               hint: '${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
             ),
             keyboardType: TextInputType.number,
@@ -285,8 +297,8 @@ class _BNPLScreenState extends State<BNPLScreen> {
           TextField(
             controller: _intervalCtrl,
             decoration: AppTheme.inputDecoration(
-              'Interval (seconds)',
-              hint: '86400',
+              'Payment Interval (seconds)',
+              hint: '86400 = 1 day',
             ),
             keyboardType: TextInputType.number,
           ),
@@ -331,8 +343,6 @@ class _BNPLScreenState extends State<BNPLScreen> {
         return 'ACTIVE';
       case 2:
         return 'COMPLETED';
-      case 3:
-        return 'DEFAULTED';
       default:
         return 'UNKNOWN ($code)';
     }

@@ -76,6 +76,33 @@ class DAOService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Build structured treasury withdrawal proposal data and submit.
+  /// The contract decodes `abi.encode(address token, uint256 amount, address recipient)`.
+  Future<void> proposeTreasuryWithdrawal(
+    String daoId, {
+    required String token,
+    required String amount,
+    required String recipient,
+  }) async {
+    if (token.isEmpty || amount.isEmpty || recipient.isEmpty) {
+      _error = 'Token, amount, and recipient are all required';
+      notifyListeners();
+      return;
+    }
+    // Build ABI-encoded data: pad address (20→32 bytes), uint256 (32 bytes), address (20→32 bytes)
+    final tokenHex = token.replaceFirst('0x', '').toLowerCase().padLeft(64, '0');
+    final amtBig = BigInt.tryParse(amount);
+    if (amtBig == null) {
+      _error = 'Invalid amount';
+      notifyListeners();
+      return;
+    }
+    final amtHex = amtBig.toRadixString(16).padLeft(64, '0');
+    final recipientHex = recipient.replaceFirst('0x', '').toLowerCase().padLeft(64, '0');
+    final data = '0x$tokenHex$amtHex$recipientHex';
+    await propose(daoId, data);
+  }
+
   Future<void> vote(String proposalId, bool support, {String? daoId}) async {
     _setLoading();
     try {
@@ -195,6 +222,11 @@ class DAOService extends ChangeNotifier {
 
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  void setError(String msg) {
+    _error = msg;
     notifyListeners();
   }
 }
