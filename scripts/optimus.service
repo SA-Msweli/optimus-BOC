@@ -1,0 +1,24 @@
+[Unit]
+Description=Optimus Protocol Backend API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=optimus
+Group=optimus
+WorkingDirectory=/home/optimus
+ExecStart=/home/optimus/optimus-backend
+EnvironmentFile=/etc/optimus/backend.env
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/optimus/backend.log
+StandardError=append:/var/log/optimus/backend.log
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/optimus
+
+[Install]
+WantedBy=multi-user.target
