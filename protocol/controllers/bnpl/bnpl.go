@@ -116,13 +116,25 @@ func (c *Controller) makePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Installment uint8 `json:"installment"`
+		Installment uint8  `json:"installment"`
+		Amount      string `json:"amount"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	// Set msg.value for the payable MakePayment contract call
+	amt := new(big.Int)
+	if req.Amount != "" {
+		if _, ok := amt.SetString(req.Amount, 10); !ok {
+			writeError(w, "invalid amount", http.StatusBadRequest)
+			return
+		}
+	}
+	prevValue := c.auth.Value
+	c.auth.Value = amt
 	tx, err := c.svc.MakePayment(c.auth, arrId, req.Installment)
+	c.auth.Value = prevValue
 	if err != nil {
 		writeError(w, err.Error(), http.StatusInternalServerError)
 		return
