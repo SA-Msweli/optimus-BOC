@@ -48,192 +48,200 @@ class _BNPLScreenState extends State<BNPLScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('BNPL Arrangements')),
-      body: Consumer<BNPLService>(
-        builder: (context, svc, _) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (svc.error != null)
-                ErrorBanner(
-                    message: svc.error!, onDismiss: () => svc.clearError()),
-              if (svc.lastTx != null)
-                SuccessBanner(
-                    message: 'TX: ${truncateAddress(svc.lastTx!)}'),
+    return Consumer<BNPLService>(
+      builder: (context, svc, _) {
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (svc.error != null)
+              ErrorBanner(
+                message: svc.error!,
+                onDismiss: () => svc.clearError(),
+              ),
+            if (svc.lastTx != null)
+              SuccessBanner(message: 'TX: ${truncateAddress(svc.lastTx!)}'),
 
-              // ── Lookup ──
+            // ── Lookup ──
+            InfoCard(
+              title: 'Lookup Arrangement',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _idCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'Arrangement ID',
+                        hint: '1',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.fetchArrangement(_idCtrl.text.trim()),
+                    child: const Text('Fetch'),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Arrangement details ──
+            if (svc.current != null) ...[
               InfoCard(
-                title: 'Lookup Arrangement',
-                child: Row(
+                title: 'Arrangement #${svc.current!.arrangementId}',
+                child: Column(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _idCtrl,
-                        decoration:
-                            AppTheme.inputDecoration('Arrangement ID', hint: '1'),
-                        keyboardType: TextInputType.number,
-                      ),
+                    KVRow(label: 'DAO ID', value: svc.current!.daoId),
+                    KVRow(
+                      label: 'Payer',
+                      value: truncateAddress(svc.current!.payer),
+                      mono: true,
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.fetchArrangement(_idCtrl.text.trim()),
-                      child: const Text('Fetch'),
+                    KVRow(
+                      label: 'Recipient',
+                      value: truncateAddress(svc.current!.recipient),
+                      mono: true,
+                    ),
+                    KVRow(
+                      label: 'Total (wei)',
+                      value: svc.current!.totalAmount,
+                    ),
+                    KVRow(label: 'Total (ETH)', value: svc.current!.totalEth),
+                    KVRow(
+                      label: 'Installments',
+                      value: svc.current!.numInstallments.toString(),
+                    ),
+                    KVRow(
+                      label: 'Per Installment',
+                      value: svc.current!.installmentAmount,
+                    ),
+                    KVRow(
+                      label: 'Start',
+                      value: _formatTimestamp(svc.current!.startTimestamp),
+                    ),
+                    KVRow(
+                      label: 'Interval',
+                      value: '${svc.current!.intervalSeconds}s',
+                    ),
+                    KVRow(
+                      label: 'Status',
+                      value: _statusLabel(svc.current!.status),
                     ),
                   ],
                 ),
               ),
 
-              // ── Arrangement details ──
-              if (svc.current != null) ...[
-                InfoCard(
-                  title: 'Arrangement #${svc.current!.arrangementId}',
-                  child: Column(
-                    children: [
-                      KVRow(
-                          label: 'DAO ID', value: svc.current!.daoId),
-                      KVRow(
-                          label: 'Payer',
-                          value: truncateAddress(svc.current!.payer),
-                          mono: true),
-                      KVRow(
-                          label: 'Recipient',
-                          value: truncateAddress(svc.current!.recipient),
-                          mono: true),
-                      KVRow(
-                          label: 'Total (wei)',
-                          value: svc.current!.totalAmount),
-                      KVRow(
-                          label: 'Total (ETH)',
-                          value: svc.current!.totalEth),
-                      KVRow(
-                          label: 'Installments',
-                          value: svc.current!.numInstallments.toString()),
-                      KVRow(
-                          label: 'Per Installment',
-                          value: svc.current!.installmentAmount),
-                      KVRow(
-                          label: 'Start',
-                          value: _formatTimestamp(svc.current!.startTimestamp)),
-                      KVRow(
-                          label: 'Interval',
-                          value: '${svc.current!.intervalSeconds}s'),
-                      KVRow(
-                          label: 'Status',
-                          value: _statusLabel(svc.current!.status)),
-                    ],
+              // ── Actions on existing arrangement ──
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.activate(svc.current!.arrangementId),
+                    icon: const Icon(Icons.play_arrow, size: 18),
+                    label: const Text('Activate'),
                   ),
-                ),
+                  ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () {
+                            final inst =
+                                int.tryParse(_installmentCtrl.text) ?? 0;
+                            svc.makePayment(svc.current!.arrangementId, inst);
+                          },
+                    icon: const Icon(Icons.payment, size: 18),
+                    label: const Text('Pay'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () {
+                            final inst =
+                                int.tryParse(_installmentCtrl.text) ?? 0;
+                            svc.applyLateFee(svc.current!.arrangementId, inst);
+                          },
+                    icon: const Icon(Icons.warning_amber, size: 18),
+                    label: const Text('Late Fee'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.warning,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-                // ── Actions on existing arrangement ──
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+              // Installment picker for pay / late fee
+              TextField(
+                controller: _installmentCtrl,
+                decoration: AppTheme.inputDecoration(
+                  'Installment #',
+                  hint: '0',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+
+              // Reschedule
+              InfoCard(
+                title: 'Reschedule',
+                child: Column(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc
-                              .activate(svc.current!.arrangementId),
-                      icon: const Icon(Icons.play_arrow, size: 18),
-                      label: const Text('Activate'),
+                    TextField(
+                      controller: _newStartCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'New Start (unix)',
+                        hint: '1700000000',
+                      ),
+                      keyboardType: TextInputType.number,
                     ),
-                    ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () {
-                              final inst =
-                                  int.tryParse(_installmentCtrl.text) ?? 0;
-                              svc.makePayment(
-                                  svc.current!.arrangementId, inst);
-                            },
-                      icon: const Icon(Icons.payment, size: 18),
-                      label: const Text('Pay'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _newIntervalCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'New Interval (sec)',
+                        hint: '86400',
+                      ),
+                      keyboardType: TextInputType.number,
                     ),
-                    ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () {
-                              final inst =
-                                  int.tryParse(_installmentCtrl.text) ?? 0;
-                              svc.applyLateFee(
-                                  svc.current!.arrangementId, inst);
-                            },
-                      icon: const Icon(Icons.warning_amber, size: 18),
-                      label: const Text('Late Fee'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.warning),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: svc.loading
+                            ? null
+                            : () => svc.reschedule(
+                                svc.current!.arrangementId,
+                                int.tryParse(_newStartCtrl.text) ?? 0,
+                                int.tryParse(_newIntervalCtrl.text) ?? 0,
+                              ),
+                        icon: const Icon(Icons.schedule, size: 18),
+                        label: const Text('Reschedule'),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Installment picker for pay / late fee
-                TextField(
-                  controller: _installmentCtrl,
-                  decoration: AppTheme.inputDecoration(
-                      'Installment #', hint: '0'),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-
-                // Reschedule
-                InfoCard(
-                  title: 'Reschedule',
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _newStartCtrl,
-                        decoration: AppTheme.inputDecoration(
-                            'New Start (unix)', hint: '1700000000'),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _newIntervalCtrl,
-                        decoration: AppTheme.inputDecoration(
-                            'New Interval (sec)', hint: '86400'),
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: svc.loading
-                              ? null
-                              : () => svc.reschedule(
-                                    svc.current!.arrangementId,
-                                    int.tryParse(_newStartCtrl.text) ?? 0,
-                                    int.tryParse(_newIntervalCtrl.text) ?? 0,
-                                  ),
-                          icon: const Icon(Icons.schedule, size: 18),
-                          label: const Text('Reschedule'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const Divider(height: 32),
-
-              // ── Create toggle ──
-              TextButton.icon(
-                onPressed: () => setState(() => _showCreate = !_showCreate),
-                icon: Icon(_showCreate ? Icons.close : Icons.add),
-                label:
-                    Text(_showCreate ? 'Cancel' : 'New Arrangement'),
               ),
-
-              if (_showCreate) _buildCreateForm(svc),
-
-              if (svc.loading) const LoadingOverlay(label: 'Processing…'),
             ],
-          );
-        },
-      ),
+
+            const Divider(height: 32),
+
+            // ── Create toggle ──
+            TextButton.icon(
+              onPressed: () => setState(() => _showCreate = !_showCreate),
+              icon: Icon(_showCreate ? Icons.close : Icons.add),
+              label: Text(_showCreate ? 'Cancel' : 'New Arrangement'),
+            ),
+
+            if (_showCreate) _buildCreateForm(svc),
+
+            if (svc.loading) const LoadingOverlay(label: 'Processing…'),
+          ],
+        );
+      },
     );
   }
 
@@ -250,28 +258,36 @@ class _BNPLScreenState extends State<BNPLScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _recipientCtrl,
-            decoration: AppTheme.inputDecoration('Recipient (0x…)',
-                hint: '0x…'),
+            decoration: AppTheme.inputDecoration(
+              'Recipient (0x…)',
+              hint: '0x…',
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _totalCtrl,
-            decoration: AppTheme.inputDecoration('Total Amount (wei)',
-                hint: '1000000000000000000'),
+            decoration: AppTheme.inputDecoration(
+              'Total Amount (wei)',
+              hint: '1000000000000000000',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _startCtrl,
-            decoration: AppTheme.inputDecoration('Start Timestamp (unix)',
-                hint: '${DateTime.now().millisecondsSinceEpoch ~/ 1000}'),
+            decoration: AppTheme.inputDecoration(
+              'Start Timestamp (unix)',
+              hint: '${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _intervalCtrl,
             decoration: AppTheme.inputDecoration(
-                'Interval (seconds)', hint: '86400'),
+              'Interval (seconds)',
+              hint: '86400',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 12),
@@ -281,14 +297,12 @@ class _BNPLScreenState extends State<BNPLScreen> {
               onPressed: svc.loading
                   ? null
                   : () => svc.createArrangement(
-                        daoId: _daoIdCtrl.text.trim(),
-                        recipient: _recipientCtrl.text.trim(),
-                        totalAmount: _totalCtrl.text.trim(),
-                        startTimestamp:
-                            int.tryParse(_startCtrl.text) ?? 0,
-                        intervalSeconds:
-                            int.tryParse(_intervalCtrl.text) ?? 0,
-                      ),
+                      daoId: _daoIdCtrl.text.trim(),
+                      recipient: _recipientCtrl.text.trim(),
+                      totalAmount: _totalCtrl.text.trim(),
+                      startTimestamp: int.tryParse(_startCtrl.text) ?? 0,
+                      intervalSeconds: int.tryParse(_intervalCtrl.text) ?? 0,
+                    ),
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('Create'),
             ),

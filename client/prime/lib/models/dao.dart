@@ -19,11 +19,11 @@ class DAO {
   String get goalLabel {
     switch (goal) {
       case '0':
-        return 'General';
+        return 'Savings';
       case '1':
         return 'Lending';
       case '2':
-        return 'BNPL';
+        return 'Investment';
       default:
         return 'Type $goal';
     }
@@ -33,24 +33,21 @@ class DAO {
       '${(votingPeriodSeconds / 86400).round()} days';
 
   factory DAO.fromJson(Map<String, dynamic> json) => DAO(
-        daoId: json['dao_id']?.toString() ??
-            json['DaoID']?.toString() ??
-            '',
-        creator: json['creator']?.toString() ??
-            json['Creator']?.toString() ??
-            '',
-        goal: json['goal']?.toString() ??
-            json['Goal']?.toString() ??
-            '0',
-        votingPeriodSeconds: _parseInt(
-            json['voting_period_seconds'] ?? json['VotingPeriodSeconds']),
-        treasuryBalance: json['treasury_balance']?.toString() ??
-            json['TreasuryBalance']?.toString() ??
-            '0',
-        totalInvestments: json['total_investments']?.toString() ??
-            json['TotalInvestments']?.toString() ??
-            '0',
-      );
+    daoId: json['dao_id']?.toString() ?? json['DaoID']?.toString() ?? '',
+    creator: json['creator']?.toString() ?? json['Creator']?.toString() ?? '',
+    goal: json['goal']?.toString() ?? json['Goal']?.toString() ?? '0',
+    votingPeriodSeconds: _parseInt(
+      json['voting_period_seconds'] ?? json['VotingPeriodSeconds'],
+    ),
+    treasuryBalance:
+        json['treasury_balance']?.toString() ??
+        json['TreasuryBalance']?.toString() ??
+        '0',
+    totalInvestments:
+        json['total_investments']?.toString() ??
+        json['TotalInvestments']?.toString() ??
+        '0',
+  );
 }
 
 int _parseInt(dynamic v) {

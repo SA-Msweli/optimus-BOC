@@ -8,11 +8,15 @@ class AppConfig {
   /// Backend API base URL (EC2 instance running the Optimus protocol server).
   static const String backendUrl = 'http://13.60.166.148';
 
-  /// Privy application ID.
+  /// Privy application ID (the value shown in the Privy dashboard).
   static const String privyAppId = 'cmiyiw1s40005jx0dho2x9bn4';
 
-  /// Privy client ID (optional, used for embedded wallets).
-  static const String privyClientId = 'cmiyiw1s40005jx0dho2x9bn4';
+  /// Privy **mobile** client ID (required by the Flutter SDK).
+  ///
+  /// This is different from the app ID and the web client ID.
+  /// Obtained from the Privy dashboard under API Keys → Client IDs.
+  static const String privyClientId =
+      'client-WY6TQxeEvQSz7ybBuvhBfaDPMrZZSPPQgK29q9PjUy1vz';
 
   /// Custom URL scheme used for Privy OAuth redirects.
   /// Must match the scheme registered in AndroidManifest.xml / Info.plist.

@@ -6,12 +6,7 @@ import '../screens/bnpl_screen.dart';
 import '../screens/loan_screen.dart';
 import '../screens/dao_screen.dart';
 import '../screens/vault_screen.dart';
-
-/// Truncates a hex address to 0x1234…abcd format.
-String _short(String addr) {
-  if (addr.length <= 12) return addr;
-  return '${addr.substring(0, 6)}…${addr.substring(addr.length - 4)}';
-}
+import 'shared.dart';
 
 /// Main navigation shell with a bottom navigation bar.
 class AppShell extends StatefulWidget {
@@ -23,6 +18,8 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+
+  static const _titles = ['Identity', 'BNPL', 'Loans', 'DAO', 'Vault'];
 
   static const _pages = <Widget>[
     DIDScreen(),
@@ -38,11 +35,7 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          auth.walletAddress != null
-              ? _short(auth.walletAddress!)
-              : auth.email ?? 'Optimus',
-        ),
+        title: Text(_titles[_index]),
         actions: [
           if (auth.walletAddress != null)
             Padding(
@@ -54,7 +47,7 @@ class _AppShellState extends State<AppShell> {
                   color: Colors.white70,
                 ),
                 label: Text(
-                  _short(auth.walletAddress!),
+                  truncateAddress(auth.walletAddress!),
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
                 backgroundColor: Colors.white24,

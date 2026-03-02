@@ -33,108 +33,112 @@ class _VaultScreenState extends State<VaultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Token Vault')),
-      body: Consumer<VaultService>(
-        builder: (context, svc, _) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (svc.error != null)
-                ErrorBanner(
-                    message: svc.error!, onDismiss: () => svc.clearError()),
-              if (svc.lastTx != null)
-                SuccessBanner(
-                    message: 'TX: ${truncateAddress(svc.lastTx!)}'),
+    return Consumer<VaultService>(
+      builder: (context, svc, _) {
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (svc.error != null)
+              ErrorBanner(
+                message: svc.error!,
+                onDismiss: () => svc.clearError(),
+              ),
+            if (svc.lastTx != null)
+              SuccessBanner(message: 'TX: ${truncateAddress(svc.lastTx!)}'),
 
-              // ── Token address ──
-              InfoCard(
-                title: 'Token Address',
-                child: TextField(
-                  controller: _tokenCtrl,
-                  decoration: AppTheme.inputDecoration('Token (0x…)',
-                      hint: '0x…'),
+            // ── Token address ──
+            InfoCard(
+              title: 'Token Address',
+              child: TextField(
+                controller: _tokenCtrl,
+                decoration: AppTheme.inputDecoration(
+                  'Token (0x…)',
+                  hint: '0x…',
                 ),
               ),
+            ),
 
-              // ── Balance ──
-              InfoCard(
-                title: 'Vault Balance',
-                child: Column(
-                  children: [
-                    KVRow(label: 'Balance (wei)', value: svc.balance),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: svc.loading
-                            ? null
-                            : () => svc.fetchBalance(_tokenCtrl.text.trim()),
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Refresh Balance'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Divider(height: 24),
-
-              // ── Amount input ──
-              InfoCard(
-                title: 'Transaction Amount',
-                child: TextField(
-                  controller: _amountCtrl,
-                  decoration: AppTheme.inputDecoration('Amount (wei)',
-                      hint: '1000000000000000000'),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-
-              // ── Deposit / Withdraw ──
-              Row(
+            // ── Balance ──
+            InfoCard(
+              title: 'Vault Balance',
+              child: Column(
                 children: [
-                  Expanded(
+                  KVRow(label: 'Balance (wei)', value: svc.balance),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: svc.loading
                           ? null
-                          : () => svc.deposit(
-                                _tokenCtrl.text.trim(),
-                                _amountCtrl.text.trim(),
-                              ),
-                      icon: const Icon(Icons.arrow_downward, size: 18),
-                      label: const Text('Deposit'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.secondary),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.withdraw(
-                                _tokenCtrl.text.trim(),
-                                _amountCtrl.text.trim(),
-                              ),
-                      icon: const Icon(Icons.arrow_upward, size: 18),
-                      label: const Text('Withdraw'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.warning),
+                          : () => svc.fetchBalance(_tokenCtrl.text.trim()),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Refresh Balance'),
                     ),
                   ),
                 ],
               ),
+            ),
 
-              if (svc.loading)
-                const Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: LoadingOverlay(label: 'Processing…'),
+            const Divider(height: 24),
+
+            // ── Amount input ──
+            InfoCard(
+              title: 'Transaction Amount',
+              child: TextField(
+                controller: _amountCtrl,
+                decoration: AppTheme.inputDecoration(
+                  'Amount (wei)',
+                  hint: '1000000000000000000',
                 ),
-            ],
-          );
-        },
-      ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+
+            // ── Deposit / Withdraw ──
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.deposit(
+                            _tokenCtrl.text.trim(),
+                            _amountCtrl.text.trim(),
+                          ),
+                    icon: const Icon(Icons.arrow_downward, size: 18),
+                    label: const Text('Deposit'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.secondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.withdraw(
+                            _tokenCtrl.text.trim(),
+                            _amountCtrl.text.trim(),
+                          ),
+                    icon: const Icon(Icons.arrow_upward, size: 18),
+                    label: const Text('Withdraw'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.warning,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            if (svc.loading)
+              const Padding(
+                padding: EdgeInsets.only(top: 24),
+                child: LoadingOverlay(label: 'Processing…'),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -37,7 +37,13 @@ class AuthService extends ChangeNotifier {
   final ApiClient _api;
 
   // ── Privy SDK instance ─────────────────────────────────────────────────
-  late final Privy _privy;
+  Privy? _privy;
+
+  /// Internal accessor that asserts the SDK has been initialised.
+  Privy get _sdk {
+    assert(_privy != null, 'Privy SDK has not been initialised');
+    return _privy!;
+  }
 
   // ── Observable state ───────────────────────────────────────────────────
   AuthStatus _status = AuthStatus.unknown;
@@ -67,6 +73,27 @@ class AuthService extends ChangeNotifier {
 
   /// Call once from `main()` **before** `runApp`.
   Future<void> init() async {
+    debugPrint('[AuthService] initializing Privy');
+    debugPrint('  appId=${AppConfig.privyAppId}');
+    debugPrint(
+      '  appClientId=${AppConfig.privyClientId.isEmpty ? "<empty>" : AppConfig.privyClientId}',
+    );
+
+    // ── Validate configuration (works in both debug AND release) ─────────
+    if (AppConfig.privyAppId.isEmpty) {
+      _error = 'Privy app ID is not configured. Update AppConfig.';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return;
+    }
+    if (AppConfig.privyClientId.isEmpty) {
+      _error = 'Privy client ID is not configured. Update AppConfig.';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return;
+    }
+
+    // ── Create SDK instance ─────────────────────────────────────────────
     try {
       _privy = Privy.init(
         config: PrivyConfig(
@@ -74,21 +101,29 @@ class AuthService extends ChangeNotifier {
           appClientId: AppConfig.privyClientId,
         ),
       );
+    } catch (e) {
+      debugPrint('[AuthService] Privy.init failed: $e');
+      _error = 'Failed to initialise authentication: $e';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return;
+    }
 
-      // Wait for the native SDK to finish initialisation.
-      await _privy.getAuthState();
+    // ── Check for existing session ──────────────────────────────────────
+    try {
+      await _sdk.getAuthState();
 
-      // Check for a persisted session (returns null when none).
-      final existingUser = await _privy.getUser();
+      final existingUser = await _sdk.getUser();
       if (existingUser != null) {
         await _handleAuthenticated(existingUser);
       } else {
         _status = AuthStatus.unauthenticated;
       }
     } catch (e) {
-      debugPrint('[AuthService] init error: $e');
+      debugPrint('[AuthService] post-init error: $e');
       _status = AuthStatus.unauthenticated;
     }
+
     notifyListeners();
   }
 
@@ -98,7 +133,7 @@ class AuthService extends ChangeNotifier {
   Future<void> sendOtp(String emailAddress) async {
     _setLoading();
     try {
-      final result = await _privy.email.sendCode(emailAddress);
+      final result = await _sdk.email.sendCode(emailAddress);
       result.fold(
         onSuccess: (_) {
           _email = emailAddress;
@@ -124,10 +159,7 @@ class AuthService extends ChangeNotifier {
     }
     _setLoading();
     try {
-      final result = await _privy.email.loginWithCode(
-        email: _email!,
-        code: code,
-      );
+      final result = await _sdk.email.loginWithCode(email: _email!, code: code);
       PrivyUser? loggedInUser;
       result.fold(
         onSuccess: (user) => loggedInUser = user,
@@ -153,7 +185,7 @@ class AuthService extends ChangeNotifier {
   Future<void> _oauthLogin(OAuthProvider provider) async {
     _setLoading();
     try {
-      final result = await _privy.oAuth.login(
+      final result = await _sdk.oAuth.login(
         provider: provider,
         appUrlScheme: AppConfig.oauthScheme,
       );
@@ -179,7 +211,7 @@ class AuthService extends ChangeNotifier {
   /// Returns a fresh Privy JWT access-token, or `null` if not authenticated.
   Future<String?> getAccessToken() async {
     try {
-      final user = await _privy.getUser();
+      final user = await _sdk.getUser();
       if (user == null) return null;
       final result = await user.getAccessToken();
       String? token;
@@ -194,7 +226,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      await _privy.logout();
+      if (_privy != null) await _privy!.logout();
     } catch (_) {}
     _api.clearTokenProvider();
     _user = null;

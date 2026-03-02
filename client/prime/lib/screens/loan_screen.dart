@@ -38,151 +38,161 @@ class _LoanScreenState extends State<LoanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Loans')),
-      body: Consumer<LoanService>(
-        builder: (context, svc, _) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (svc.error != null)
-                ErrorBanner(
-                    message: svc.error!, onDismiss: () => svc.clearError()),
-              if (svc.lastTx != null)
-                SuccessBanner(
-                    message: 'TX: ${truncateAddress(svc.lastTx!)}'),
+    return Consumer<LoanService>(
+      builder: (context, svc, _) {
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (svc.error != null)
+              ErrorBanner(
+                message: svc.error!,
+                onDismiss: () => svc.clearError(),
+              ),
+            if (svc.lastTx != null)
+              SuccessBanner(message: 'TX: ${truncateAddress(svc.lastTx!)}'),
 
-              // ── Lookup ──
-              InfoCard(
-                title: 'Lookup Loan',
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _idCtrl,
-                        decoration:
-                            AppTheme.inputDecoration('Loan ID', hint: '1'),
-                        keyboardType: TextInputType.number,
+            // ── Lookup ──
+            InfoCard(
+              title: 'Lookup Loan',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _idCtrl,
+                      decoration: AppTheme.inputDecoration(
+                        'Loan ID',
+                        hint: '1',
                       ),
+                      keyboardType: TextInputType.number,
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: svc.loading
-                          ? null
-                          : () {
-                              final id = _idCtrl.text.trim();
-                              svc.fetchLoan(id);
-                              svc.fetchAccruedInterest(id);
-                              svc.fetchAmountOwed(id);
-                            },
-                      child: const Text('Fetch'),
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── Loan details ──
-              if (svc.current != null) ...[
-                InfoCard(
-                  title: 'Loan #${svc.current!.loanId}',
-                  child: Column(
-                    children: [
-                      KVRow(
-                          label: 'Borrower',
-                          value: truncateAddress(svc.current!.borrower),
-                          mono: true),
-                      KVRow(
-                          label: 'DAO / Address',
-                          value: svc.current!.daoAddress),
-                      KVRow(
-                          label: 'Principal (wei)',
-                          value: svc.current!.principal),
-                      KVRow(
-                          label: 'Principal (ETH)',
-                          value: svc.current!.principalEth),
-                      KVRow(
-                          label: 'Interest Rate',
-                          value: svc.current!.interestRatePercent),
-                      KVRow(
-                          label: 'Start',
-                          value: _formatTimestamp(svc.current!.startTime)),
-                      KVRow(
-                          label: 'End',
-                          value: _formatTimestamp(svc.current!.endTime)),
-                      KVRow(
-                          label: 'Amount Paid',
-                          value: svc.current!.amountPaidEth),
-                      KVRow(
-                          label: 'Status',
-                          value: _loanStatus(svc.current!.status)),
-                      const Divider(),
-                      KVRow(
-                          label: 'Accrued Interest',
-                          value: svc.accruedInterest),
-                      KVRow(
-                          label: 'Total Owed', value: svc.amountOwed),
-                    ],
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: svc.loading
+                        ? null
+                        : () {
+                            final id = _idCtrl.text.trim();
+                            svc.fetchLoan(id);
+                            svc.fetchAccruedInterest(id);
+                            svc.fetchAmountOwed(id);
+                          },
+                    child: const Text('Fetch'),
+                  ),
+                ],
+              ),
+            ),
 
-                // ── Actions on existing loan ──
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+            // ── Loan details ──
+            if (svc.current != null) ...[
+              InfoCard(
+                title: 'Loan #${svc.current!.loanId}',
+                child: Column(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.approveLoan(svc.current!.loanId),
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Approve'),
+                    KVRow(
+                      label: 'Borrower',
+                      value: truncateAddress(svc.current!.borrower),
+                      mono: true,
                     ),
-                    ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.makePayment(svc.current!.loanId),
-                      icon: const Icon(Icons.payment, size: 18),
-                      label: const Text('Make Payment'),
+                    KVRow(
+                      label: 'DAO / Address',
+                      value: svc.current!.daoAddress,
                     ),
-                    ElevatedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () => svc.markDefaulted(svc.current!.loanId),
-                      icon: const Icon(Icons.cancel, size: 18),
-                      label: const Text('Mark Default'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.error),
+                    KVRow(
+                      label: 'Principal (wei)',
+                      value: svc.current!.principal,
                     ),
-                    OutlinedButton.icon(
-                      onPressed: svc.loading
-                          ? null
-                          : () {
-                              svc.fetchAccruedInterest(svc.current!.loanId);
-                              svc.fetchAmountOwed(svc.current!.loanId);
-                            },
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: const Text('Refresh Amounts'),
+                    KVRow(
+                      label: 'Principal (ETH)',
+                      value: svc.current!.principalEth,
                     ),
+                    KVRow(
+                      label: 'Interest Rate',
+                      value: svc.current!.interestRatePercent,
+                    ),
+                    KVRow(
+                      label: 'Start',
+                      value: _formatTimestamp(svc.current!.startTime),
+                    ),
+                    KVRow(
+                      label: 'End',
+                      value: _formatTimestamp(svc.current!.endTime),
+                    ),
+                    KVRow(
+                      label: 'Amount Paid',
+                      value: svc.current!.amountPaidEth,
+                    ),
+                    KVRow(
+                      label: 'Status',
+                      value: _loanStatus(svc.current!.status),
+                    ),
+                    const Divider(),
+                    KVRow(
+                      label: 'Accrued Interest',
+                      value: svc.accruedInterest,
+                    ),
+                    KVRow(label: 'Total Owed', value: svc.amountOwed),
                   ],
                 ),
-              ],
-
-              const Divider(height: 32),
-
-              // ── Toggle create ──
-              TextButton.icon(
-                onPressed: () => setState(() => _showCreate = !_showCreate),
-                icon: Icon(_showCreate ? Icons.close : Icons.add),
-                label: Text(_showCreate ? 'Cancel' : 'New Loan'),
               ),
 
-              if (_showCreate) _buildCreateForm(svc),
-
-              if (svc.loading) const LoadingOverlay(label: 'Processing…'),
+              // ── Actions on existing loan ──
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.approveLoan(svc.current!.loanId),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const Text('Approve'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.makePayment(svc.current!.loanId),
+                    icon: const Icon(Icons.payment, size: 18),
+                    label: const Text('Make Payment'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () => svc.markDefaulted(svc.current!.loanId),
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Mark Default'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.error,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: svc.loading
+                        ? null
+                        : () {
+                            svc.fetchAccruedInterest(svc.current!.loanId);
+                            svc.fetchAmountOwed(svc.current!.loanId);
+                          },
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Refresh Amounts'),
+                  ),
+                ],
+              ),
             ],
-          );
-        },
-      ),
+
+            const Divider(height: 32),
+
+            // ── Toggle create ──
+            TextButton.icon(
+              onPressed: () => setState(() => _showCreate = !_showCreate),
+              icon: Icon(_showCreate ? Icons.close : Icons.add),
+              label: Text(_showCreate ? 'Cancel' : 'New Loan'),
+            ),
+
+            if (_showCreate) _buildCreateForm(svc),
+
+            if (svc.loading) const LoadingOverlay(label: 'Processing…'),
+          ],
+        );
+      },
     );
   }
 
@@ -193,8 +203,7 @@ class _LoanScreenState extends State<LoanScreen> {
         children: [
           TextField(
             controller: _borrowerCtrl,
-            decoration: AppTheme.inputDecoration('Borrower (0x…)',
-                hint: '0x…'),
+            decoration: AppTheme.inputDecoration('Borrower (0x…)', hint: '0x…'),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -206,21 +215,27 @@ class _LoanScreenState extends State<LoanScreen> {
           TextField(
             controller: _principalCtrl,
             decoration: AppTheme.inputDecoration(
-                'Principal (wei)', hint: '1000000000000000000'),
+              'Principal (wei)',
+              hint: '1000000000000000000',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _rateBpsCtrl,
             decoration: AppTheme.inputDecoration(
-                'Interest Rate (bps)', hint: '500'),
+              'Interest Rate (bps)',
+              hint: '500',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _durationCtrl,
             decoration: AppTheme.inputDecoration(
-                'Duration (seconds)', hint: '2592000'),
+              'Duration (seconds)',
+              hint: '2592000',
+            ),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 12),
@@ -230,12 +245,12 @@ class _LoanScreenState extends State<LoanScreen> {
               onPressed: svc.loading
                   ? null
                   : () => svc.createLoan(
-                        borrower: _borrowerCtrl.text.trim(),
-                        daoId: _daoIdCtrl.text.trim(),
-                        principal: _principalCtrl.text.trim(),
-                        interestRateBps: _rateBpsCtrl.text.trim(),
-                        durationSeconds: _durationCtrl.text.trim(),
-                      ),
+                      borrower: _borrowerCtrl.text.trim(),
+                      daoId: _daoIdCtrl.text.trim(),
+                      principal: _principalCtrl.text.trim(),
+                      interestRateBps: _rateBpsCtrl.text.trim(),
+                      durationSeconds: _durationCtrl.text.trim(),
+                    ),
               icon: const Icon(Icons.add_card),
               label: const Text('Create Loan'),
             ),

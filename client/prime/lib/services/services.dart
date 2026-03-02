@@ -1,3 +1,4 @@
+export 'auth_service.dart';
 export 'api_client.dart';
 export 'did_service.dart';
 export 'bnpl_service.dart';

@@ -83,32 +83,39 @@ class _DAOScreenState extends State<DAOScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('DAO Governance'),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'DAO'),
-            Tab(text: 'Proposals'),
-            Tab(text: 'Terms'),
-            Tab(text: 'Treasury'),
+    return Consumer<DAOService>(
+      builder: (context, svc, _) {
+        return Column(
+          children: [
+            Material(
+              color: AppTheme.primary,
+              child: TabBar(
+                controller: _tabs,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                indicatorColor: Colors.white,
+                tabs: const [
+                  Tab(text: 'DAO'),
+                  Tab(text: 'Proposals'),
+                  Tab(text: 'Terms'),
+                  Tab(text: 'Treasury'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabs,
+                children: [
+                  _buildDAOTab(svc),
+                  _buildProposalTab(svc),
+                  _buildTermsTab(svc),
+                  _buildTreasuryTab(svc),
+                ],
+              ),
+            ),
           ],
-        ),
-      ),
-      body: Consumer<DAOService>(
-        builder: (context, svc, _) {
-          return TabBarView(
-            controller: _tabs,
-            children: [
-              _buildDAOTab(svc),
-              _buildProposalTab(svc),
-              _buildTermsTab(svc),
-              _buildTreasuryTab(svc),
-            ],
-          );
-        },
-      ),
+        );
+      },
     );
   }
 
@@ -132,15 +139,19 @@ class _DAOScreenState extends State<DAOScreen>
             children: [
               TextField(
                 controller: _goalCtrl,
-                decoration: AppTheme.inputDecoration('Goal',
-                    hint: '0=SAVINGS, 1=LENDING, 2=INVESTMENT'),
+                decoration: AppTheme.inputDecoration(
+                  'Goal',
+                  hint: '0=SAVINGS, 1=LENDING, 2=INVESTMENT',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _votingPeriodCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Voting Period (days)', hint: '7'),
+                  'Voting Period (days)',
+                  hint: '7',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
@@ -150,10 +161,10 @@ class _DAOScreenState extends State<DAOScreen>
                   onPressed: svc.loading
                       ? null
                       : () => svc.createDAO(
-                            goal: int.tryParse(_goalCtrl.text) ?? 0,
-                            votingPeriodDays:
-                                int.tryParse(_votingPeriodCtrl.text) ?? 7,
-                          ),
+                          goal: int.tryParse(_goalCtrl.text) ?? 0,
+                          votingPeriodDays:
+                              int.tryParse(_votingPeriodCtrl.text) ?? 7,
+                        ),
                   icon: const Icon(Icons.group_add),
                   label: const Text('Create DAO'),
                 ),
@@ -169,12 +180,14 @@ class _DAOScreenState extends State<DAOScreen>
             child: Column(
               children: [
                 KVRow(
-                    label: 'DAO ID',
-                    value: svc.currentDAO!['dao_id']?.toString() ?? 'N/A'),
+                  label: 'DAO ID',
+                  value: svc.currentDAO!['dao_id']?.toString() ?? 'N/A',
+                ),
                 KVRow(
-                    label: 'TX',
-                    value: svc.currentDAO!['tx']?.toString() ?? 'N/A',
-                    mono: true),
+                  label: 'TX',
+                  value: svc.currentDAO!['tx']?.toString() ?? 'N/A',
+                  mono: true,
+                ),
               ],
             ),
           ),
@@ -189,15 +202,16 @@ class _DAOScreenState extends State<DAOScreen>
             children: [
               TextField(
                 controller: _joinDaoIdCtrl,
-                decoration:
-                    AppTheme.inputDecoration('DAO ID', hint: '1'),
+                decoration: AppTheme.inputDecoration('DAO ID', hint: '1'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _investmentCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Investment (wei)', hint: '1000000000000000000'),
+                  'Investment (wei)',
+                  hint: '1000000000000000000',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
@@ -207,9 +221,9 @@ class _DAOScreenState extends State<DAOScreen>
                   onPressed: svc.loading
                       ? null
                       : () => svc.joinDAO(
-                            _joinDaoIdCtrl.text.trim(),
-                            _investmentCtrl.text.trim(),
-                          ),
+                          _joinDaoIdCtrl.text.trim(),
+                          _investmentCtrl.text.trim(),
+                        ),
                   icon: const Icon(Icons.person_add),
                   label: const Text('Join'),
                 ),
@@ -243,15 +257,16 @@ class _DAOScreenState extends State<DAOScreen>
             children: [
               TextField(
                 controller: _proposeDaoIdCtrl,
-                decoration:
-                    AppTheme.inputDecoration('DAO ID', hint: '1'),
+                decoration: AppTheme.inputDecoration('DAO ID', hint: '1'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _proposeDataCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Proposal Data (hex)', hint: '0x…'),
+                  'Proposal Data (hex)',
+                  hint: '0x…',
+                ),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
@@ -261,9 +276,9 @@ class _DAOScreenState extends State<DAOScreen>
                   onPressed: svc.loading
                       ? null
                       : () => svc.propose(
-                            _proposeDaoIdCtrl.text.trim(),
-                            _proposeDataCtrl.text.trim(),
-                          ),
+                          _proposeDaoIdCtrl.text.trim(),
+                          _proposeDataCtrl.text.trim(),
+                        ),
                   icon: const Icon(Icons.description),
                   label: const Text('Propose'),
                 ),
@@ -281,24 +296,26 @@ class _DAOScreenState extends State<DAOScreen>
             children: [
               TextField(
                 controller: _voteProposalIdCtrl,
-                decoration:
-                    AppTheme.inputDecoration('Proposal ID', hint: '1'),
+                decoration: AppTheme.inputDecoration('Proposal ID', hint: '1'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _voteDaoIdCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'DAO ID (optional)', hint: '1'),
+                  'DAO ID (optional)',
+                  hint: '1',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               SwitchListTile(
-                title: Text(_voteSupport ? 'FOR' : 'AGAINST',
-                    style: AppTheme.subheading.copyWith(
-                        color: _voteSupport
-                            ? AppTheme.secondary
-                            : AppTheme.error)),
+                title: Text(
+                  _voteSupport ? 'FOR' : 'AGAINST',
+                  style: AppTheme.subheading.copyWith(
+                    color: _voteSupport ? AppTheme.secondary : AppTheme.error,
+                  ),
+                ),
                 value: _voteSupport,
                 onChanged: (v) => setState(() => _voteSupport = v),
                 activeThumbColor: AppTheme.secondary,
@@ -334,8 +351,7 @@ class _DAOScreenState extends State<DAOScreen>
             children: [
               TextField(
                 controller: _actionProposalIdCtrl,
-                decoration:
-                    AppTheme.inputDecoration('Proposal ID', hint: '1'),
+                decoration: AppTheme.inputDecoration('Proposal ID', hint: '1'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
@@ -346,7 +362,8 @@ class _DAOScreenState extends State<DAOScreen>
                       onPressed: svc.loading
                           ? null
                           : () => svc.finalizeProposal(
-                              _actionProposalIdCtrl.text.trim()),
+                              _actionProposalIdCtrl.text.trim(),
+                            ),
                       icon: const Icon(Icons.gavel, size: 18),
                       label: const Text('Finalize'),
                     ),
@@ -357,7 +374,8 @@ class _DAOScreenState extends State<DAOScreen>
                       onPressed: svc.loading
                           ? null
                           : () => svc.executeProposal(
-                              _actionProposalIdCtrl.text.trim()),
+                              _actionProposalIdCtrl.text.trim(),
+                            ),
                       icon: const Icon(Icons.play_arrow, size: 18),
                       label: const Text('Execute'),
                     ),
@@ -394,8 +412,7 @@ class _DAOScreenState extends State<DAOScreen>
               Expanded(
                 child: TextField(
                   controller: _termsDaoIdCtrl,
-                  decoration:
-                      AppTheme.inputDecoration('DAO ID', hint: '1'),
+                  decoration: AppTheme.inputDecoration('DAO ID', hint: '1'),
                   keyboardType: TextInputType.number,
                 ),
               ),
@@ -403,8 +420,7 @@ class _DAOScreenState extends State<DAOScreen>
               ElevatedButton(
                 onPressed: svc.loading
                     ? null
-                    : () =>
-                        svc.fetchBnplTerms(_termsDaoIdCtrl.text.trim()),
+                    : () => svc.fetchBnplTerms(_termsDaoIdCtrl.text.trim()),
                 child: const Text('Fetch'),
               ),
             ],
@@ -432,50 +448,52 @@ class _DAOScreenState extends State<DAOScreen>
               TextField(
                 controller: _numInstCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Num Installments', hint: '4'),
+                  'Num Installments',
+                  hint: '4',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _minDaysCtrl,
-                decoration: AppTheme.inputDecoration(
-                    'Min Days', hint: '7'),
+                decoration: AppTheme.inputDecoration('Min Days', hint: '7'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _maxDaysCtrl,
-                decoration: AppTheme.inputDecoration(
-                    'Max Days', hint: '90'),
+                decoration: AppTheme.inputDecoration('Max Days', hint: '90'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _lateFeeBpsCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Late Fee (bps)', hint: '200'),
+                  'Late Fee (bps)',
+                  hint: '200',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _graceDaysCtrl,
-                decoration: AppTheme.inputDecoration(
-                    'Grace Days', hint: '3'),
+                decoration: AppTheme.inputDecoration('Grace Days', hint: '3'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _minDownBpsCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Min Down Payment (bps)', hint: '1000'),
+                  'Min Down Payment (bps)',
+                  hint: '1000',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               SwitchListTile(
                 title: const Text('Reschedule Allowed'),
                 value: _rescheduleAllowed,
-                onChanged: (v) =>
-                    setState(() => _rescheduleAllowed = v),
+                onChanged: (v) => setState(() => _rescheduleAllowed = v),
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -484,15 +502,15 @@ class _DAOScreenState extends State<DAOScreen>
                   onPressed: svc.loading
                       ? null
                       : () => svc.setBnplTerms(
-                            _termsDaoIdCtrl.text.trim(),
-                            numInstallments: _numInstCtrl.text.trim(),
-                            minDays: _minDaysCtrl.text.trim(),
-                            maxDays: _maxDaysCtrl.text.trim(),
-                            lateFeeBps: _lateFeeBpsCtrl.text.trim(),
-                            graceDays: _graceDaysCtrl.text.trim(),
-                            rescheduleAllowed: _rescheduleAllowed,
-                            minDownBps: _minDownBpsCtrl.text.trim(),
-                          ),
+                          _termsDaoIdCtrl.text.trim(),
+                          numInstallments: _numInstCtrl.text.trim(),
+                          minDays: _minDaysCtrl.text.trim(),
+                          maxDays: _maxDaysCtrl.text.trim(),
+                          lateFeeBps: _lateFeeBpsCtrl.text.trim(),
+                          graceDays: _graceDaysCtrl.text.trim(),
+                          rescheduleAllowed: _rescheduleAllowed,
+                          minDownBps: _minDownBpsCtrl.text.trim(),
+                        ),
                   icon: const Icon(Icons.save),
                   label: const Text('Set Terms'),
                 ),
@@ -525,8 +543,7 @@ class _DAOScreenState extends State<DAOScreen>
             children: [
               TextField(
                 controller: _treasuryDaoIdCtrl,
-                decoration:
-                    AppTheme.inputDecoration('DAO ID', hint: '1'),
+                decoration: AppTheme.inputDecoration('DAO ID', hint: '1'),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
@@ -534,7 +551,8 @@ class _DAOScreenState extends State<DAOScreen>
                 onPressed: svc.loading
                     ? null
                     : () => svc.fetchTreasuryBalance(
-                        _treasuryDaoIdCtrl.text.trim()),
+                        _treasuryDaoIdCtrl.text.trim(),
+                      ),
                 child: const Text('Fetch Balance'),
               ),
               const SizedBox(height: 12),
@@ -552,7 +570,9 @@ class _DAOScreenState extends State<DAOScreen>
               TextField(
                 controller: _creditAmountCtrl,
                 decoration: AppTheme.inputDecoration(
-                    'Amount (wei)', hint: '1000000000000000000'),
+                  'Amount (wei)',
+                  hint: '1000000000000000000',
+                ),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
@@ -562,9 +582,9 @@ class _DAOScreenState extends State<DAOScreen>
                   onPressed: svc.loading
                       ? null
                       : () => svc.creditTreasury(
-                            _treasuryDaoIdCtrl.text.trim(),
-                            _creditAmountCtrl.text.trim(),
-                          ),
+                          _treasuryDaoIdCtrl.text.trim(),
+                          _creditAmountCtrl.text.trim(),
+                        ),
                   icon: const Icon(Icons.add_card),
                   label: const Text('Credit'),
                 ),
