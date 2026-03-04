@@ -148,7 +148,7 @@ class _DAOScreenState extends State<DAOScreen>
           child: Column(
             children: [
               DropdownButtonFormField<int>(
-                value: _selectedGoal,
+                initialValue: _selectedGoal,
                 decoration: AppTheme.inputDecoration('Goal'),
                 items: const [
                   DropdownMenuItem(value: 0, child: Text('Savings')),
@@ -391,7 +391,9 @@ class _DAOScreenState extends State<DAOScreen>
                       : () {
                           final daoId = _voteDaoIdCtrl.text.trim();
                           if (daoId.isEmpty) {
-                            svc.setError('DAO ID is required to verify membership');
+                            svc.setError(
+                              'DAO ID is required to verify membership',
+                            );
                             return;
                           }
                           svc.vote(

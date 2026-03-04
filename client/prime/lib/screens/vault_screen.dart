@@ -20,11 +20,6 @@ class _VaultScreenState extends State<VaultScreen> {
   final _amountCtrl = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _tokenCtrl.dispose();
     _amountCtrl.dispose();
